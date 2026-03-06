@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
     // Limpar markdown fences e extrair JSON
     const cleaned = text
-      .replace(/```json/g, "")
+      .replace(/```json/gi, "")
       .replace(/```/g, "")
       .trim();
     const analysisData = JSON.parse(cleaned);
