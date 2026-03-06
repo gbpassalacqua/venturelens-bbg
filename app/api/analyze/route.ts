@@ -821,86 +821,56 @@ export async function POST(request: Request) {
     const createdBy = (formData.get("created_by") as string) || "unknown";
     const githubUrl = (formData.get("githubUrl") as string) || null;
     const packageJsonFile = (formData.get("packageJsonFile") as File | null) || null;
-    const productMode = (formData.get("productMode") as string) || "prd";
 
-    if (!file) {
-      return NextResponse.json(
-        { success: false, error: "No file provided" },
-        { status: 400 }
-      );
-    }
+    if (!file) return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-
     const textoExtraido = await extractText(buffer, file.type);
 
     if (!textoExtraido || textoExtraido.trim().length < 50) {
-      return NextResponse.json(
-        { success: false, error: "Could not extract enough text from file" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Could not extract enough text from file" }, { status: 400 });
     }
 
-    // Resolve GitHub (strategies A/B/C with deep reading)
     const github = await resolveGithub(githubUrl, packageJsonFile);
 
-    // Build prompt with GitHub context
     const { geminiModel } = await import("@/lib/gemini");
-    const { VENTURELENS_SYSTEM_PROMPT } = await import("@/lib/playbook");
+    const { VENTURELENS_SYSTEM_PROMPT, V2_SCHEMA_PART_A, V2_SCHEMA_PART_B } = await import("@/lib/playbook");
 
-    let prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalise este PRD:\n\n${textoExtraido}`;
+    let prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalyze this document:\n\n${textoExtraido}`;
 
     if (github.context) {
-      prompt += `\n\n--- DADOS TECNICOS DO REPOSITORIO ---\n${github.context}`;
+      prompt += `\n\n--- TECHNICAL DATA FROM REPOSITORY ---\n${github.context}`;
     }
 
+    // Try full call first
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let d: any;
+    try {
+      const result = await geminiModel.generateContent(prompt);
+      const text = result.response.text();
+      d = JSON.parse(text);
+    } catch (parseError) {
+      // FALLBACK: Split into 2 calls
+      console.log("Full response failed, trying split fallback...", parseError);
+
+      const promptA = `${prompt}\n\n${V2_SCHEMA_PART_A}`;
+      const promptB = `${prompt}\n\n${V2_SCHEMA_PART_B}`;
+
+      const [resultA, resultB] = await Promise.all([
+        geminiModel.generateContent(promptA),
+        geminiModel.generateContent(promptB),
+      ]);
+
+      const partA = JSON.parse(resultA.response.text());
+      const partB = JSON.parse(resultB.response.text());
+      d = { ...partA, ...partB };
+    }
+
+    // Inject github_status
     if (github.status !== "sem_github") {
-      prompt += `\n\nINCLUA no report_json o campo "github_status": "${github.status}"`;
+      d.github_status = github.status;
     }
-
-    prompt += `\n\nINCLUA no report_json o campo "produto_modo": "${productMode}"`;
-    prompt += `\n\nSe houver dados de AUDITORIA DE SEGURANCA, inclua no report_json os campos "analise_tecnica" (objeto com resumo tecnico do repositorio) e "security_audit" (array de achados de seguranca com tipo, arquivo, descricao e severidade).`;
-
-    const result = await geminiModel.generateContent(prompt);
-    const text = result.response.text();
-
-    // Clean markdown fences and parse JSON
-    const cleaned = text
-      .replace(/```json/gi, "")
-      .replace(/```/g, "")
-      .trim();
-    const d = JSON.parse(cleaned);
-
-    // Build complete report_json with ALL generated data
-    const reportJson = {
-      ...(d.report_json || {}),
-      summary: d.report_json?.summary || d.summary || "",
-      scores: d.report_json?.scores || d.scores || {},
-      tam: d.report_json?.tam || d.tam || {},
-      sam: d.report_json?.sam || d.sam || {},
-      som: d.report_json?.som || d.som || {},
-      competitors: d.report_json?.competitors || d.competitors || [],
-      risks: d.report_json?.risks || d.risks || [],
-      next_steps: d.report_json?.next_steps || d.next_steps || "",
-      strengths: d.report_json?.strengths || d.strengths || [],
-      weaknesses: d.report_json?.weaknesses || d.weaknesses || [],
-      github_status: d.report_json?.github_status || github.status,
-      produto_modo: productMode,
-      launch_readiness_score: d.report_json?.launch_readiness_score || d.launch_readiness_score || null,
-      launch_verdict: d.report_json?.launch_verdict || d.launch_verdict || null,
-      launch_checklist: d.report_json?.launch_checklist || d.launch_checklist || null,
-      top3_para_lancar: d.report_json?.top3_para_lancar || d.top3_para_lancar || null,
-      analise_tecnica: d.report_json?.analise_tecnica || d.analise_tecnica || null,
-      security_audit: d.report_json?.security_audit || d.security_audit || null,
-      // Embed top-level fields for full reconstruction from history
-      _score: d.score,
-      _verdict: d.verdict,
-      _recommendation: d.recommendation,
-      _mvp_features: d.mvp_features || [],
-      _v2_features: d.v2_features || [],
-      _cut_features: d.cut_features || [],
-    };
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -909,15 +879,15 @@ export async function POST(request: Request) {
       id,
       created_at: now,
       created_by: createdBy,
-      project_name: d.project_name || file.name.replace(/\.[^.]+$/, ""),
+      project_name: d.meta?.companyName || file.name.replace(/\.[^.]+$/, ""),
       file_name: file.name,
-      score: d.score,
-      verdict: d.verdict,
-      recommendation: d.recommendation,
-      mvp_features: d.mvp_features,
-      v2_features: d.v2_features,
-      cut_features: d.cut_features,
-      report_json: reportJson,
+      score: d.scores?.overall?.score || 0,
+      verdict: d.executiveSummary?.verdict || "WATCH",
+      recommendation: d.executiveSummary?.verdictExplanation || "",
+      mvp_features: (d.recommendations?.immediate || []).map((s: string) => ({ name: s, reason: "" })),
+      v2_features: (d.recommendations?.shortTerm || []).map((s: string) => ({ name: s, reason: "" })),
+      cut_features: (d.recommendations?.strategic || []).map((s: string) => ({ name: s, reason: "" })),
+      report_json: d,
     };
 
     // Save to Supabase
@@ -937,18 +907,12 @@ export async function POST(request: Request) {
       report_json: analysis.report_json,
     });
 
-    if (dbError) {
-      console.error("Supabase insert error:", dbError);
-    }
+    if (dbError) console.error("Supabase insert error:", dbError);
 
     return NextResponse.json({ success: true, data: analysis });
   } catch (error) {
     console.error("Analysis error:", error);
-    const message =
-      error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 
 const BASE_STEPS = [
-  { icon: "🤖", label: "Lendo o PRD..." },
-  { icon: "📊", label: "Pesquisando o mercado..." },
-  { icon: "💰", label: "Calculando TAM/SAM/SOM..." },
-  { icon: "⚔️", label: "Mapeando concorrentes..." },
-  { icon: "⏱", label: "Avaliando timing de mercado..." },
-  { icon: "⚠️", label: "Identificando riscos..." },
-  { icon: "🎯", label: "Gerando score final..." },
+  { icon: "📄", label: "Lendo o documento..." },
+  { icon: "🏛️", label: "Agent 1 — Strategy Partner analisando mercado e competição..." },
+  { icon: "💰", label: "Agent 2 — Finance Analyst auditando métricas e projeções..." },
+  { icon: "📈", label: "Agent 3 — Growth Strategist avaliando GTM e tração..." },
+  { icon: "⚙️", label: "Agent 4 — CTO avaliando tecnologia e produto..." },
+  { icon: "📊", label: "Analisando slide por slide..." },
+  { icon: "⚠️", label: "Calculando risk matrix..." },
+  { icon: "🎯", label: "Gerando scores e verdict final..." },
 ];
 
 interface LoadingStepsProps {
@@ -19,7 +20,7 @@ interface LoadingStepsProps {
 export default function LoadingSteps({ extraSteps = [] }: LoadingStepsProps) {
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Insert extra steps after the first base step (after "Lendo o PRD...")
+  // Insert extra steps after the first base step (after reading doc)
   const allSteps = [
     BASE_STEPS[0],
     ...extraSteps,
@@ -30,7 +31,7 @@ export default function LoadingSteps({ extraSteps = [] }: LoadingStepsProps) {
     setCurrentStep(0);
     const interval = setInterval(() => {
       setCurrentStep((prev) => (prev < allSteps.length - 1 ? prev + 1 : prev));
-    }, 3000);
+    }, 4000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allSteps.length]);

@@ -7,8 +7,9 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
-import { AnalysisResult } from "@/types/analysis";
+import type { AnalysisResult, V2ReportJson } from "@/types/analysis";
 
+/* ── Color constants ── */
 const GOLD = "#F0A500";
 const GREEN = "#22C55E";
 const AMBER = "#F59E0B";
@@ -18,18 +19,48 @@ const GRAY = "#6B7280";
 const LIGHTGRAY = "#E5E7EB";
 const WHITE = "#FFFFFF";
 const BLUE = "#3B82F6";
+const ORANGE = "#F97316";
 
-const TYPE_LABELS: Record<string, string> = {
-  direct: "Direto",
-  indirect: "Indireto",
-  emerging: "Emergente",
-};
+/* ── Helpers ── */
 
-const LEVEL_LABELS: Record<string, string> = {
-  high: "Alto",
-  medium: "Médio",
-  low: "Baixo",
-};
+function barColor(v: number) {
+  return v >= 70 ? GREEN : v >= 40 ? AMBER : RED;
+}
+
+function verdictColor(v?: string): string {
+  const upper = (v ?? "").toUpperCase();
+  if (upper === "STRONG PASS") return GREEN;
+  if (upper === "PASS") return BLUE;
+  if (upper === "CONDITIONAL") return AMBER;
+  if (upper === "WATCH") return ORANGE;
+  return RED; // DECLINE or unknown
+}
+
+function verdictBg(v?: string): string {
+  const upper = (v ?? "").toUpperCase();
+  if (upper === "STRONG PASS") return "#F0FDF4";
+  if (upper === "PASS") return "#EFF6FF";
+  if (upper === "CONDITIONAL") return "#FFFBEB";
+  if (upper === "WATCH") return "#FFF7ED";
+  return "#FEF2F2";
+}
+
+function severityColor(s?: string): string {
+  const lower = (s ?? "").toLowerCase();
+  if (lower === "high" || lower === "critical") return RED;
+  if (lower === "medium") return AMBER;
+  return GREEN;
+}
+
+function gradeColor(g?: string): string {
+  const upper = (g ?? "").toUpperCase();
+  if (upper === "A" || upper === "A+") return GREEN;
+  if (upper === "B" || upper === "B+") return BLUE;
+  if (upper === "C" || upper === "C+") return AMBER;
+  return RED;
+}
+
+/* ── Styles ── */
 
 const styles = StyleSheet.create({
   page: {
@@ -39,7 +70,7 @@ const styles = StyleSheet.create({
     color: DARK,
     backgroundColor: WHITE,
   },
-  // Header
+  /* Header */
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -64,19 +95,38 @@ const styles = StyleSheet.create({
     backgroundColor: GOLD,
     marginBottom: 18,
   },
-  // Project
-  projectName: {
+  /* Company / Project */
+  companyName: {
     fontSize: 20,
     fontFamily: "Helvetica-Bold",
     color: DARK,
+    marginBottom: 4,
+  },
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
     marginBottom: 16,
   },
-  // Score center
+  metaItem: {
+    flexDirection: "row",
+    gap: 3,
+  },
+  metaLabel: {
+    fontSize: 8,
+    color: GRAY,
+    fontFamily: "Helvetica-Bold",
+  },
+  metaValue: {
+    fontSize: 8,
+    color: DARK,
+  },
+  /* Score */
   scoreRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 14,
     gap: 18,
   },
   scoreCircle: {
@@ -109,37 +159,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Helvetica-Bold",
   },
-  // Bars
-  barRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  barLabel: {
-    width: 80,
-    fontSize: 9,
-    color: GRAY,
-  },
-  barTrack: {
-    flex: 1,
-    height: 8,
-    backgroundColor: LIGHTGRAY,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  barFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  barValue: {
-    width: 25,
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    textAlign: "right",
-  },
-  // Section
+  /* Section */
   section: {
-    marginTop: 16,
+    marginTop: 14,
     marginBottom: 4,
   },
   sectionTitle: {
@@ -171,7 +193,41 @@ const styles = StyleSheet.create({
     lineHeight: 1.5,
     fontFamily: "Helvetica-Oblique",
   },
-  // TAM/SAM/SOM
+  label: {
+    fontSize: 8,
+    color: GRAY,
+    fontFamily: "Helvetica-Bold",
+    marginBottom: 2,
+  },
+  /* Bars */
+  barRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  barLabel: {
+    width: 80,
+    fontSize: 9,
+    color: GRAY,
+  },
+  barTrack: {
+    flex: 1,
+    height: 8,
+    backgroundColor: LIGHTGRAY,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  barFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  barValue: {
+    width: 25,
+    fontSize: 9,
+    fontFamily: "Helvetica-Bold",
+    textAlign: "right",
+  },
+  /* TAM / SAM / SOM cards */
   tamRow: {
     flexDirection: "row",
     gap: 12,
@@ -194,12 +250,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Helvetica-Bold",
   },
-  tamDesc: {
-    fontSize: 8,
-    color: GRAY,
-    marginTop: 2,
-  },
-  // Table
+  /* Table */
   tableHeader: {
     flexDirection: "row",
     backgroundColor: "#F3F4F6",
@@ -231,84 +282,61 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     color: WHITE,
   },
-  // Risks
-  riskRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 5,
-    gap: 6,
-  },
-  riskDesc: {
-    flex: 1,
-    fontSize: 9,
-    color: DARK,
-  },
-  riskTag: {
-    fontSize: 7,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-    color: WHITE,
-  },
-  // Strengths/Weaknesses columns
-  swRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  swCol: {
-    flex: 1,
-  },
-  swItem: {
-    fontSize: 9,
-    color: DARK,
-    marginBottom: 3,
-    lineHeight: 1.4,
-  },
-  // Features columns
-  featRow: {
+  /* 3-col layout */
+  threeCol: {
     flexDirection: "row",
     gap: 10,
   },
-  featCol: {
+  colCard: {
     flex: 1,
     borderWidth: 1,
     borderRadius: 6,
     padding: 8,
   },
-  featTitle: {
+  colTitle: {
     fontSize: 10,
     fontFamily: "Helvetica-Bold",
     marginBottom: 6,
   },
-  featItem: {
-    marginBottom: 4,
+  colItem: {
+    fontSize: 8,
+    color: DARK,
+    marginBottom: 3,
+    lineHeight: 1.4,
   },
-  featName: {
-    fontSize: 9,
+  /* Metric grid */
+  metricGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  metricCell: {
+    width: "30%",
+    padding: 8,
+    borderWidth: 1,
+    borderColor: LIGHTGRAY,
+    borderRadius: 6,
+  },
+  metricLabel: {
+    fontSize: 7,
+    color: GRAY,
+    marginBottom: 2,
+  },
+  metricValue: {
+    fontSize: 12,
     fontFamily: "Helvetica-Bold",
     color: DARK,
   },
-  featNameCut: {
-    fontSize: 9,
+  /* Badge / Tag */
+  badge: {
+    fontSize: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+    color: WHITE,
     fontFamily: "Helvetica-Bold",
-    color: GRAY,
-    textDecoration: "line-through",
   },
-  featReason: {
-    fontSize: 7,
-    color: GRAY,
-    marginTop: 1,
-  },
-  // Recommendation box
-  recoBox: {
-    marginTop: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: GOLD,
-    borderRadius: 6,
-    backgroundColor: "#FFFBEB",
-  },
-  // Footer
+  /* Footer */
   footer: {
     position: "absolute",
     bottom: 20,
@@ -323,365 +351,665 @@ const styles = StyleSheet.create({
   },
 });
 
-function barColor(v: number) {
-  return v >= 70 ? GREEN : v >= 40 ? AMBER : RED;
+/* ── Reusable sub-components ── */
+
+function Header({ subtitle, date }: { subtitle: string; date: string }) {
+  return (
+    <>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.headerTitle}>VentureLens BBG</Text>
+          <Text style={styles.headerSub}>{subtitle}</Text>
+        </View>
+        <Text style={styles.headerDate}>{date}</Text>
+      </View>
+      <View style={styles.divider} />
+    </>
+  );
 }
 
-function verdictStyle(v: string) {
-  if (v === "AVANÇAR") return { borderColor: GREEN, backgroundColor: "#F0FDF4", color: GREEN };
-  if (v === "PIVOTAR") return { borderColor: AMBER, backgroundColor: "#FFFBEB", color: AMBER };
-  return { borderColor: RED, backgroundColor: "#FEF2F2", color: RED };
+function Footer({ date }: { date: string }) {
+  return (
+    <Text style={styles.footer}>
+      Gerado por VentureLens BBG · V2 Analysis · {date}
+    </Text>
+  );
 }
 
-function levelColor(l: string) {
-  if (l === "high") return RED;
-  if (l === "medium") return AMBER;
-  return GREEN;
+function ScoreBar({ label, score }: { label: string; score: number }) {
+  return (
+    <View style={styles.barRow}>
+      <Text style={styles.barLabel}>{label}</Text>
+      <View style={styles.barTrack}>
+        <View
+          style={[
+            styles.barFill,
+            { width: `${Math.min(score, 100)}%`, backgroundColor: barColor(score) },
+          ]}
+        />
+      </View>
+      <Text style={[styles.barValue, { color: barColor(score) }]}>{score}</Text>
+    </View>
+  );
 }
 
-function typeColor(t: string) {
-  if (t === "direct") return RED;
-  if (t === "indirect") return BLUE;
-  return GREEN;
-}
+/* ── Main Component ── */
 
 export default function ReportPDF({ result }: { result: AnalysisResult }) {
-  const r = result.report_json;
+  const r = result.report_json as V2ReportJson;
+
+  // If V1 data (no meta field), render a simple fallback page
+  if (!r?.meta) {
+    return (
+      <Document>
+        <Page size="A4" style={styles.page}>
+          <Text>Analysis created with older version. Re-run for V2 report.</Text>
+        </Page>
+      </Document>
+    );
+  }
+
   const today = new Date().toLocaleDateString("pt-BR");
-  const vs = verdictStyle(result.verdict);
+  const vColor = verdictColor(r.executiveSummary?.verdict);
+  const vBg = verdictBg(r.executiveSummary?.verdict);
+
+  const scores = r.scores;
+  const exec = r.executiveSummary;
+  const strategy = r.strategyAnalysis;
+  const fin = r.financialAnalysis;
+  const mkt = r.marketingAnalysis;
+  const tech = r.techAnalysis;
+  const slides = r.slideBySlide;
+  const questions = r.investorQuestions;
+  const recs = r.recommendations;
+  const comps = r.comparables;
 
   return (
     <Document>
+      {/* ═══════════════════════════════════════════════════════════
+          PAGE 1 — Executive Overview
+          ═══════════════════════════════════════════════════════════ */}
       <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>VentureLens BBG</Text>
-            <Text style={styles.headerSub}>BBG Digital Products</Text>
-          </View>
-          <Text style={styles.headerDate}>Gerado em {today}</Text>
+        <Header subtitle="V2 Analysis" date={today} />
+
+        {/* Company Name */}
+        <Text style={styles.companyName}>{r.meta?.companyName ?? result.project_name}</Text>
+
+        {/* Meta info row */}
+        <View style={styles.metaRow}>
+          {r.meta?.industry ? (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Industry: </Text>
+              <Text style={styles.metaValue}>{r.meta.industry}</Text>
+            </View>
+          ) : null}
+          {r.meta?.stage ? (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Stage: </Text>
+              <Text style={styles.metaValue}>{r.meta.stage}</Text>
+            </View>
+          ) : null}
+          {r.meta?.location ? (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Location: </Text>
+              <Text style={styles.metaValue}>{r.meta.location}</Text>
+            </View>
+          ) : null}
+          {r.meta?.fundingAsk ? (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Funding Ask: </Text>
+              <Text style={styles.metaValue}>{r.meta.fundingAsk}</Text>
+            </View>
+          ) : null}
         </View>
-        <View style={styles.divider} />
 
-        {/* Project Name */}
-        <Text style={styles.projectName}>{result.project_name}</Text>
+        {/* Executive Summary */}
+        {exec ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Executive Summary</Text>
+            {exec.oneLiner ? (
+              <Text style={[styles.bodyText, { fontFamily: "Helvetica-Bold", marginBottom: 6 }]}>
+                {exec.oneLiner}
+              </Text>
+            ) : null}
+            {exec.thesis ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Thesis</Text>
+                <Text style={styles.bodyText}>{exec.thesis}</Text>
+              </View>
+            ) : null}
+            {exec.antiThesis ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Anti-Thesis</Text>
+                <Text style={styles.bodyText}>{exec.antiThesis}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
-        {/* Score + Verdict */}
-        <View style={styles.scoreRow}>
-          <View style={styles.scoreCircle}>
-            <Text style={styles.scoreNum}>{result.score}</Text>
+        {/* Verdict + Score */}
+        <View style={[styles.scoreRow, { marginTop: 12 }]}>
+          <View style={[styles.scoreCircle, { borderColor: vColor }]}>
+            <Text style={[styles.scoreNum, { color: vColor }]}>
+              {scores?.overall?.score ?? result.score}
+            </Text>
             <Text style={styles.score100}>/100</Text>
           </View>
-          <View style={[styles.verdictBadge, { borderColor: vs.borderColor, backgroundColor: vs.backgroundColor }]}>
-            <Text style={[styles.verdictText, { color: vs.color }]}>{result.verdict}</Text>
-          </View>
-        </View>
-
-        {/* Score Bars */}
-        {([
-          { key: "market" as const, label: "Mercado" },
-          { key: "platform" as const, label: "Plataforma" },
-          { key: "bbg_fit" as const, label: "Fit BBG" },
-          { key: "revenue" as const, label: "Receita" },
-        ]).map(({ key, label }) => (
-          <View key={key} style={styles.barRow}>
-            <Text style={styles.barLabel}>{label}</Text>
-            <View style={styles.barTrack}>
-              <View style={[styles.barFill, { width: `${r.scores[key]}%`, backgroundColor: barColor(r.scores[key]) }]} />
+          <View>
+            <View
+              style={[
+                styles.verdictBadge,
+                { borderColor: vColor, backgroundColor: vBg },
+              ]}
+            >
+              <Text style={[styles.verdictText, { color: vColor }]}>
+                {exec?.verdict ?? result.verdict}
+              </Text>
             </View>
-            <Text style={styles.barValue}>{r.scores[key]}</Text>
           </View>
-        ))}
-
-        {/* Resumo Executivo */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Resumo Executivo</Text>
-          <Text style={styles.bodyItalic}>{r.summary}</Text>
         </View>
+
+        {exec?.verdictExplanation ? (
+          <Text style={[styles.bodyText, { textAlign: "center", marginBottom: 8 }]}>
+            {exec.verdictExplanation}
+          </Text>
+        ) : null}
+
+        <Footer date={today} />
+      </Page>
+
+      {/* ═══════════════════════════════════════════════════════════
+          PAGE 2 — Scores & Strategy
+          ═══════════════════════════════════════════════════════════ */}
+      <Page size="A4" style={styles.page}>
+        <Header subtitle="Scores & Strategy" date={today} />
+
+        {/* Score bars */}
+        {scores ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Scores</Text>
+            {([
+              { key: "overall" as const, label: "Overall" },
+              { key: "market" as const, label: "Market" },
+              { key: "team" as const, label: "Team" },
+              { key: "product" as const, label: "Product" },
+              { key: "traction" as const, label: "Traction" },
+              { key: "financials" as const, label: "Financials" },
+              { key: "gtm" as const, label: "GTM" },
+              { key: "technology" as const, label: "Technology" },
+              { key: "deckQuality" as const, label: "Deck Quality" },
+            ]).map(({ key, label }) => {
+              const item = scores?.[key];
+              if (!item) return null;
+              return (
+                <View key={key}>
+                  <ScoreBar label={label} score={item.score} />
+                  {item.summary ? (
+                    <Text style={{ fontSize: 7, color: GRAY, marginLeft: 80, marginBottom: 4, marginTop: -3 }}>
+                      {item.summary}
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
 
         {/* TAM / SAM / SOM */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>TAM / SAM / SOM</Text>
-          <View style={styles.tamRow}>
-            {([
-              { key: "tam" as const, label: "TAM", color: GOLD },
-              { key: "sam" as const, label: "SAM", color: BLUE },
-              { key: "som" as const, label: "SOM", color: GREEN },
-            ]).map(({ key, label, color }) => (
-              <View key={key} style={[styles.tamCard, { borderBottomColor: color }]}>
-                <Text style={styles.tamLabel}>{label}</Text>
-                <Text style={[styles.tamValue, { color }]}>{r[key].value}</Text>
-                <Text style={styles.tamDesc}>{r[key].description}</Text>
+        {strategy?.marketSize ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Market Size</Text>
+            <View style={styles.tamRow}>
+              {([
+                { key: "tam" as const, label: "TAM", color: GOLD },
+                { key: "sam" as const, label: "SAM", color: BLUE },
+                { key: "som" as const, label: "SOM", color: GREEN },
+              ]).map(({ key, label, color }) => (
+                <View key={key} style={[styles.tamCard, { borderBottomColor: color }]}>
+                  <Text style={styles.tamLabel}>{label}</Text>
+                  <Text style={[styles.tamValue, { color }]}>
+                    {strategy.marketSize?.[key] ?? "N/A"}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {/* Moat strength badge */}
+        {strategy?.competitiveLandscape?.moatStrength ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, marginBottom: 4 }}>
+            <Text style={styles.label}>Moat Strength:</Text>
+            <Text
+              style={[
+                styles.badge,
+                {
+                  backgroundColor:
+                    strategy.competitiveLandscape.moatStrength.toLowerCase() === "strong"
+                      ? GREEN
+                      : strategy.competitiveLandscape.moatStrength.toLowerCase() === "moderate"
+                        ? AMBER
+                        : RED,
+                },
+              ]}
+            >
+              {strategy.competitiveLandscape.moatStrength}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Risk Matrix */}
+        {strategy?.riskMatrix && strategy.riskMatrix.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Risk Matrix</Text>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.th, { flex: 3 }]}>Risk</Text>
+              <Text style={[styles.th, { flex: 1 }]}>Prob.</Text>
+              <Text style={[styles.th, { flex: 1 }]}>Impact</Text>
+              <Text style={[styles.th, { flex: 3 }]}>Mitigation</Text>
+            </View>
+            {strategy.riskMatrix.map((rm, i) => (
+              <View key={i} style={styles.tableRow}>
+                <Text style={[styles.td, { flex: 3 }]}>{rm?.risk}</Text>
+                <View style={{ flex: 1, flexDirection: "row" }}>
+                  <Text
+                    style={[
+                      styles.tag,
+                      { backgroundColor: severityColor(rm?.probability) },
+                    ]}
+                  >
+                    {rm?.probability}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, flexDirection: "row" }}>
+                  <Text
+                    style={[
+                      styles.tag,
+                      { backgroundColor: severityColor(rm?.impact) },
+                    ]}
+                  >
+                    {rm?.impact}
+                  </Text>
+                </View>
+                <Text style={[styles.td, { flex: 3, color: GRAY }]}>{rm?.mitigation}</Text>
               </View>
             ))}
           </View>
-        </View>
+        ) : null}
 
-        {/* Concorrentes */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Concorrentes</Text>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.th, { flex: 2 }]}>Nome</Text>
-            <Text style={[styles.th, { flex: 1 }]}>Tipo</Text>
-            <Text style={[styles.th, { flex: 1 }]}>Preço</Text>
-            <Text style={[styles.th, { flex: 2 }]}>Fraqueza</Text>
-          </View>
-          {r.competitors.map((c, i) => (
-            <View key={i} style={styles.tableRow}>
-              <Text style={[styles.td, { flex: 2, fontFamily: "Helvetica-Bold" }]}>{c.name}</Text>
-              <View style={{ flex: 1, flexDirection: "row" }}>
-                <Text style={[styles.tag, { backgroundColor: typeColor(c.type) }]}>
-                  {TYPE_LABELS[c.type] ?? c.type}
-                </Text>
-              </View>
-              <Text style={[styles.td, { flex: 1 }]}>{c.price}</Text>
-              <Text style={[styles.td, { flex: 2, color: GRAY }]}>{c.weakness}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Riscos */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Riscos</Text>
-          {r.risks.map((risk, i) => (
-            <View key={i} style={styles.riskRow}>
-              <Text style={styles.riskDesc}>{risk.description}</Text>
-              <Text style={[styles.riskTag, { backgroundColor: levelColor(risk.likelihood) }]}>
-                P: {LEVEL_LABELS[risk.likelihood] ?? risk.likelihood}
-              </Text>
-              <Text style={[styles.riskTag, { backgroundColor: levelColor(risk.impact) }]}>
-                I: {LEVEL_LABELS[risk.impact] ?? risk.impact}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Pontos Fortes / Fracos */}
-        <View style={styles.section}>
-          <View style={styles.swRow}>
-            <View style={styles.swCol}>
-              <Text style={[styles.sectionTitle, { color: GREEN, borderBottomColor: GREEN }]}>Pontos Fortes</Text>
-              {r.strengths.map((s, i) => (
-                <Text key={i} style={styles.swItem}>+ {s}</Text>
-              ))}
-            </View>
-            <View style={styles.swCol}>
-              <Text style={[styles.sectionTitle, { color: RED, borderBottomColor: RED }]}>Pontos Fracos</Text>
-              {r.weaknesses.map((w, i) => (
-                <Text key={i} style={styles.swItem}>- {w}</Text>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Feature Matrix */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Matriz de Features</Text>
-          <View style={styles.featRow}>
-            <View style={[styles.featCol, { borderColor: GREEN }]}>
-              <Text style={[styles.featTitle, { color: GREEN }]}>MVP AGORA</Text>
-              {result.mvp_features.map((f, i) => (
-                <View key={i} style={styles.featItem}>
-                  <Text style={styles.featName}>{f.name}</Text>
-                  <Text style={styles.featReason}>{f.reason}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={[styles.featCol, { borderColor: AMBER }]}>
-              <Text style={[styles.featTitle, { color: AMBER }]}>V2</Text>
-              {result.v2_features.map((f, i) => (
-                <View key={i} style={styles.featItem}>
-                  <Text style={styles.featName}>{f.name}</Text>
-                  <Text style={styles.featReason}>{f.reason}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={[styles.featCol, { borderColor: GRAY }]}>
-              <Text style={[styles.featTitle, { color: GRAY }]}>CORTAR</Text>
-              {result.cut_features.map((f, i) => (
-                <View key={i} style={styles.featItem}>
-                  <Text style={styles.featNameCut}>{f.name}</Text>
-                  <Text style={styles.featReason}>{f.reason}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Próximo Passo */}
-        <View style={styles.recoBox}>
-          <Text style={styles.sectionTitleGold}>Próximo Passo</Text>
-          <Text style={styles.bodyText}>{r.next_steps}</Text>
-        </View>
-
-        {/* Footer */}
-        <Text style={styles.footer}>
-          Gerado por VentureLens BBG · BBG Digital Products · {today}
-        </Text>
+        <Footer date={today} />
       </Page>
 
-      {/* Page 3 — Tech Analysis (if exists) */}
-      {r.analise_tecnica && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerTitle}>VentureLens BBG</Text>
-              <Text style={styles.headerSub}>Análise Técnica do Código</Text>
-            </View>
-            <Text style={styles.headerDate}>{result.project_name}</Text>
-          </View>
-          <View style={styles.divider} />
+      {/* ═══════════════════════════════════════════════════════════
+          PAGE 3 — Financial & Marketing
+          ═══════════════════════════════════════════════════════════ */}
+      <Page size="A4" style={styles.page}>
+        <Header subtitle="Financial & Marketing" date={today} />
 
-          <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>
-            Análise Técnica — {r.analise_tecnica.arquivos_analisados} arquivos analisados
-          </Text>
-
-          {/* Prontidão */}
+        {/* Financial Metrics Grid */}
+        {fin?.currentMetrics ? (
           <View style={styles.section}>
-            <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Prontidão para Produção</Text>
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+            <Text style={styles.sectionTitle}>Financial Metrics</Text>
+            <View style={styles.metricGrid}>
               {([
-                { k: "usuario_novo" as const, l: "Usuário" },
-                { k: "autenticacao" as const, l: "Auth" },
-                { k: "feature_principal" as const, l: "Feature" },
-                { k: "pagamento" as const, l: "Pgto" },
-                { k: "email" as const, l: "Email" },
-              ]).map(({ k, l }) => {
-                const v = r.analise_tecnica!.prontidao[k];
-                const icon = v === "ok" ? "✅" : v === "parcial" ? "⚠️" : "❌";
+                { key: "revenue" as const, label: "Revenue" },
+                { key: "burnRate" as const, label: "Burn Rate" },
+                { key: "runway" as const, label: "Runway" },
+                { key: "grossMargin" as const, label: "Gross Margin" },
+                { key: "cac" as const, label: "CAC" },
+                { key: "ltv" as const, label: "LTV" },
+                { key: "ltvCacRatio" as const, label: "LTV/CAC" },
+                { key: "churn" as const, label: "Churn" },
+                { key: "nrr" as const, label: "NRR" },
+              ]).map(({ key, label }) => {
+                const val = fin.currentMetrics?.[key];
+                if (!val) return null;
                 return (
-                  <View key={k} style={{ flex: 1, alignItems: "center", padding: 6, borderWidth: 1, borderColor: LIGHTGRAY, borderRadius: 4 }}>
-                    <Text style={{ fontSize: 14, marginBottom: 2 }}>{icon}</Text>
-                    <Text style={{ fontSize: 7, color: GRAY }}>{l}</Text>
+                  <View key={key} style={styles.metricCell}>
+                    <Text style={styles.metricLabel}>{label}</Text>
+                    <Text style={styles.metricValue}>{val}</Text>
                   </View>
                 );
               })}
             </View>
           </View>
+        ) : null}
 
-          {/* Tech Scores */}
-          {([
-            { key: "fluxo_end_to_end", label: "Fluxo E2E" },
-            { key: "pagamento", label: "Pagamento" },
-            { key: "autenticacao", label: "Autenticação" },
-            { key: "variaveis_ambiente", label: "Env Vars" },
-            { key: "qualidade_codigo", label: "Qualidade" },
-          ] as const).map(({ key, label }) => {
-            const item = r.analise_tecnica![key];
-            const score = item.score;
-            const color = score >= 7 ? GREEN : score >= 4 ? AMBER : RED;
-            return (
-              <View key={key} style={{ marginBottom: 8 }}>
-                <View style={styles.barRow}>
-                  <Text style={[styles.barLabel, { width: 70 }]}>{label}</Text>
-                  <View style={[styles.barTrack, { flex: 1 }]}>
-                    <View style={[styles.barFill, { width: `${score * 10}%`, backgroundColor: color }]} />
-                  </View>
-                  <Text style={[styles.barValue, { width: 20 }]}>{score}</Text>
-                </View>
-                <Text style={{ fontSize: 7, color: GRAY, marginLeft: 70 }}>{item.detalhe}</Text>
-              </View>
-            );
-          })}
-
-          {/* Riscos Técnicos */}
-          {r.analise_tecnica.riscos_tecnicos?.length > 0 && (
-            <View style={styles.section}>
-              <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Riscos Técnicos</Text>
-              {r.analise_tecnica.riscos_tecnicos.map((rt, i) => (
-                <View key={i} style={{ marginBottom: 6, padding: 6, borderWidth: 1, borderColor: LIGHTGRAY, borderRadius: 4 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                    <Text style={[styles.riskTag, { backgroundColor: rt.severidade === "alto" ? RED : rt.severidade === "medio" ? AMBER : GREEN }]}>
-                      {rt.severidade.toUpperCase()}
+        {/* Fundraising Analysis */}
+        {fin?.fundraisingAnalysis ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Fundraising Analysis</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {([
+                { key: "amountRaising" as const, label: "Raising" },
+                { key: "impliedValuation" as const, label: "Implied Valuation" },
+                { key: "runwayFromRaise" as const, label: "Post-Raise Runway" },
+                { key: "nextMilestone" as const, label: "Next Milestone" },
+              ]).map(({ key, label }) => {
+                const val = fin.fundraisingAnalysis?.[key];
+                if (!val) return null;
+                return (
+                  <View key={key} style={{ marginRight: 16, marginBottom: 4 }}>
+                    <Text style={styles.metricLabel}>{label}</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: DARK }}>
+                      {val}
                     </Text>
-                    <Text style={{ fontSize: 9, color: DARK, flex: 1 }}>{rt.risco}</Text>
-                  </View>
-                  <Text style={{ fontSize: 7, color: GRAY }}>Solução: {rt.solucao}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <Text style={styles.footer}>Gerado por VentureLens BBG · Análise Técnica · {today}</Text>
-        </Page>
-      )}
-
-      {/* Page 4 — Security Audit (if exists) */}
-      {r.security_audit && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerTitle}>VentureLens BBG</Text>
-              <Text style={styles.headerSub}>Auditoria de Segurança</Text>
-            </View>
-            <Text style={styles.headerDate}>{result.project_name}</Text>
-          </View>
-          <View style={styles.divider} />
-
-          {/* Score + Nivel */}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <View style={[styles.scoreCircle, { width: 60, height: 60, borderRadius: 30, borderColor: r.security_audit.score_geral >= 80 ? GREEN : r.security_audit.score_geral >= 40 ? AMBER : RED }]}>
-              <Text style={[styles.scoreNum, { fontSize: 22, color: r.security_audit.score_geral >= 80 ? GREEN : r.security_audit.score_geral >= 40 ? AMBER : RED }]}>
-                {r.security_audit.score_geral}
-              </Text>
-            </View>
-            <View>
-              <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: DARK }}>{r.security_audit.nivel}</Text>
-              <Text style={{ fontSize: 8, color: GRAY }}>Score de Segurança</Text>
-            </View>
-          </View>
-
-          {/* Critical vulnerabilities */}
-          {r.security_audit.vulnerabilidades_criticas?.length > 0 && (
-            <View style={{ padding: 8, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: RED, borderRadius: 6, marginBottom: 12 }}>
-              <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: RED, marginBottom: 4 }}>
-                {r.security_audit.vulnerabilidades_criticas.length} vulnerabilidade(s) crítica(s)
-              </Text>
-              {r.security_audit.vulnerabilidades_criticas.map((v, i) => (
-                <View key={i} style={{ marginBottom: 4 }}>
-                  <Text style={{ fontSize: 8, color: DARK }}>{v.descricao} — {v.arquivo}</Text>
-                  <Text style={{ fontSize: 7, color: GRAY }}>Correção: {v.correcao_imediata}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Security Rules */}
-          <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Regras de Segurança</Text>
-          {r.security_audit.regras?.map((rule, i) => {
-            const statusIcon = rule.status === "ok" ? "✅" : rule.status === "critico" ? "🔴" : rule.status === "alerta" ? "⚠️" : "➖";
-            const statusColor = rule.status === "ok" ? GREEN : rule.status === "critico" ? RED : rule.status === "alerta" ? AMBER : GRAY;
-            return (
-              <View key={i} style={{ marginBottom: 5, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: LIGHTGRAY }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Text style={{ fontSize: 9 }}>{statusIcon}</Text>
-                  <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: statusColor, flex: 1 }}>{rule.regra}</Text>
-                </View>
-                {rule.detalhe && <Text style={{ fontSize: 7, color: GRAY, marginTop: 1 }}>{rule.detalhe}</Text>}
-                {rule.correcao && rule.status !== "ok" && <Text style={{ fontSize: 7, color: DARK, marginTop: 1 }}>→ {rule.correcao}</Text>}
-              </View>
-            );
-          })}
-
-          {/* Deploy Checklist */}
-          {r.security_audit.checklist_deploy?.length > 0 && (
-            <View style={styles.section}>
-              <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Checklist de Deploy</Text>
-              {r.security_audit.checklist_deploy.map((item, i) => {
-                const icon = item.status === "ok" ? "✅" : item.status === "critico" ? "🔴" : "⚠️";
-                return (
-                  <View key={i} style={{ flexDirection: "row", gap: 4, marginBottom: 3 }}>
-                    <Text style={{ fontSize: 8 }}>{icon}</Text>
-                    <Text style={{ fontSize: 8, color: DARK }}>{item.item}</Text>
                   </View>
                 );
               })}
             </View>
-          )}
+            {fin.fundraisingAnalysis?.useOfFunds ? (
+              <View style={{ marginTop: 4 }}>
+                <Text style={styles.label}>Use of Funds</Text>
+                <Text style={styles.bodyText}>{fin.fundraisingAnalysis.useOfFunds}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
-          <Text style={styles.footer}>Gerado por VentureLens BBG · Auditoria de Segurança · {today}</Text>
-        </Page>
-      )}
+        {/* Financial Verdict */}
+        {fin?.financialVerdict ? (
+          <View style={{ marginTop: 6, padding: 8, backgroundColor: "#F9FAFB", borderRadius: 6, borderLeftWidth: 3, borderLeftColor: GOLD }}>
+            <Text style={styles.label}>Financial Verdict</Text>
+            <Text style={styles.bodyText}>{fin.financialVerdict}</Text>
+          </View>
+        ) : null}
+
+        {/* Marketing: GTM Channels */}
+        {mkt?.gtmStrategy ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Go-To-Market Strategy</Text>
+            {mkt.gtmStrategy.primaryChannels && mkt.gtmStrategy.primaryChannels.length > 0 ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Primary Channels</Text>
+                <Text style={styles.bodyText}>
+                  {mkt.gtmStrategy.primaryChannels.join(", ")}
+                </Text>
+              </View>
+            ) : null}
+            {mkt.gtmStrategy.channelMarketFit ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Channel-Market Fit</Text>
+                <Text style={styles.bodyText}>{mkt.gtmStrategy.channelMarketFit}</Text>
+              </View>
+            ) : null}
+            {mkt.gtmStrategy.distributionModel ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Distribution Model</Text>
+                <Text style={styles.bodyText}>{mkt.gtmStrategy.distributionModel}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Traction */}
+        {mkt?.tractionValidation ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Traction Validation</Text>
+            {([
+              { key: "currentTraction" as const, label: "Current Traction" },
+              { key: "growthTrajectory" as const, label: "Growth Trajectory" },
+              { key: "tractionQuality" as const, label: "Traction Quality" },
+              { key: "socialProof" as const, label: "Social Proof" },
+            ]).map(({ key, label }) => {
+              const val = mkt.tractionValidation?.[key];
+              if (!val) return null;
+              return (
+                <View key={key} style={{ marginBottom: 3 }}>
+                  <Text style={styles.label}>{label}</Text>
+                  <Text style={styles.bodyText}>{val}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {/* Brand Positioning */}
+        {mkt?.brandPositioning ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Brand Positioning</Text>
+            {([
+              { key: "valueProposition" as const, label: "Value Proposition" },
+              { key: "messagingQuality" as const, label: "Messaging Quality" },
+              { key: "differentiationStrength" as const, label: "Differentiation" },
+            ]).map(({ key, label }) => {
+              const val = mkt.brandPositioning?.[key];
+              if (!val) return null;
+              return (
+                <View key={key} style={{ marginBottom: 3 }}>
+                  <Text style={styles.label}>{label}</Text>
+                  <Text style={styles.bodyText}>{val}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {/* Marketing Verdict */}
+        {mkt?.marketingVerdict ? (
+          <View style={{ marginTop: 6, padding: 8, backgroundColor: "#F9FAFB", borderRadius: 6, borderLeftWidth: 3, borderLeftColor: GOLD }}>
+            <Text style={styles.label}>Marketing Verdict</Text>
+            <Text style={styles.bodyText}>{mkt.marketingVerdict}</Text>
+          </View>
+        ) : null}
+
+        <Footer date={today} />
+      </Page>
+
+      {/* ═══════════════════════════════════════════════════════════
+          PAGE 4 — Tech & Slide Analysis
+          ═══════════════════════════════════════════════════════════ */}
+      <Page size="A4" style={styles.page}>
+        <Header subtitle="Tech & Slide Analysis" date={today} />
+
+        {/* Technology Assessment */}
+        {tech?.technologyAssessment ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Technology Assessment</Text>
+            {tech.technologyAssessment.techStack ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Tech Stack</Text>
+                <Text style={styles.bodyText}>{tech.technologyAssessment.techStack}</Text>
+              </View>
+            ) : null}
+            {tech.technologyAssessment.architectureScalability ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Architecture Scalability</Text>
+                <Text style={styles.bodyText}>{tech.technologyAssessment.architectureScalability}</Text>
+              </View>
+            ) : null}
+            {tech.technologyAssessment.aiMlClaims ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>AI/ML Claims</Text>
+                <Text style={styles.bodyText}>{tech.technologyAssessment.aiMlClaims}</Text>
+              </View>
+            ) : null}
+            {tech.technologyAssessment.dataStrategy ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Data Strategy</Text>
+                <Text style={styles.bodyText}>{tech.technologyAssessment.dataStrategy}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Technical Risks */}
+        {tech?.technicalRisks && tech.technicalRisks.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Technical Risks</Text>
+            {tech.technicalRisks.map((tr, i) => (
+              <View
+                key={i}
+                style={{
+                  marginBottom: 6,
+                  padding: 6,
+                  borderWidth: 1,
+                  borderColor: LIGHTGRAY,
+                  borderRadius: 4,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <Text
+                    style={[styles.badge, { backgroundColor: severityColor(tr?.severity) }]}
+                  >
+                    {tr?.severity?.toUpperCase()}
+                  </Text>
+                  <Text style={{ fontSize: 9, color: DARK, flex: 1 }}>{tr?.risk}</Text>
+                </View>
+                {tr?.mitigation ? (
+                  <Text style={{ fontSize: 7, color: GRAY }}>Mitigation: {tr.mitigation}</Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {/* IP Defensibility */}
+        {tech?.ipDefensibility ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>IP Defensibility</Text>
+            {([
+              { key: "patents" as const, label: "Patents" },
+              { key: "proprietaryTech" as const, label: "Proprietary Tech" },
+              { key: "moatDurability" as const, label: "Moat Durability" },
+              { key: "openSourceRisk" as const, label: "Open Source Risk" },
+            ]).map(({ key, label }) => {
+              const val = tech.ipDefensibility?.[key];
+              if (!val) return null;
+              return (
+                <View key={key} style={{ marginBottom: 3 }}>
+                  <Text style={styles.label}>{label}</Text>
+                  <Text style={styles.bodyText}>{val}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {/* Slide-by-Slide Table */}
+        {slides && slides.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Slide-by-Slide Analysis</Text>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.th, { width: 20 }]}>#</Text>
+              <Text style={[styles.th, { flex: 2 }]}>Title</Text>
+              <Text style={[styles.th, { width: 40 }]}>Grade</Text>
+              <Text style={[styles.th, { flex: 3 }]}>Strengths</Text>
+            </View>
+            {slides.map((slide, i) => (
+              <View key={i} style={styles.tableRow}>
+                <Text style={[styles.td, { width: 20, fontFamily: "Helvetica-Bold" }]}>
+                  {slide?.slideNumber}
+                </Text>
+                <Text style={[styles.td, { flex: 2 }]}>{slide?.slideTitle}</Text>
+                <View style={{ width: 40, flexDirection: "row" }}>
+                  <Text
+                    style={[
+                      styles.tag,
+                      { backgroundColor: gradeColor(slide?.grade) },
+                    ]}
+                  >
+                    {slide?.grade}
+                  </Text>
+                </View>
+                <Text style={[styles.td, { flex: 3, color: GRAY }]}>
+                  {slide?.strengths?.join("; ")}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <Footer date={today} />
+      </Page>
+
+      {/* ═══════════════════════════════════════════════════════════
+          PAGE 5 — Recommendations & Questions
+          ═══════════════════════════════════════════════════════════ */}
+      <Page size="A4" style={styles.page}>
+        <Header subtitle="Recommendations & Questions" date={today} />
+
+        {/* Investor Questions */}
+        {questions && questions.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Investor Questions</Text>
+            {questions.map((q, i) => (
+              <Text key={i} style={{ fontSize: 9, color: DARK, marginBottom: 4, lineHeight: 1.4 }}>
+                {i + 1}. {q}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Recommendations in 3 columns */}
+        {recs ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recommendations</Text>
+            <View style={styles.threeCol}>
+              {/* Immediate */}
+              {recs.immediate && recs.immediate.length > 0 ? (
+                <View style={[styles.colCard, { borderColor: RED }]}>
+                  <Text style={[styles.colTitle, { color: RED }]}>Immediate</Text>
+                  {recs.immediate.map((item, i) => (
+                    <Text key={i} style={styles.colItem}>
+                      {i + 1}. {item}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+
+              {/* Short-Term */}
+              {recs.shortTerm && recs.shortTerm.length > 0 ? (
+                <View style={[styles.colCard, { borderColor: AMBER }]}>
+                  <Text style={[styles.colTitle, { color: AMBER }]}>Short-Term</Text>
+                  {recs.shortTerm.map((item, i) => (
+                    <Text key={i} style={styles.colItem}>
+                      {i + 1}. {item}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+
+              {/* Strategic */}
+              {recs.strategic && recs.strategic.length > 0 ? (
+                <View style={[styles.colCard, { borderColor: BLUE }]}>
+                  <Text style={[styles.colTitle, { color: BLUE }]}>Strategic</Text>
+                  {recs.strategic.map((item, i) => (
+                    <Text key={i} style={styles.colItem}>
+                      {i + 1}. {item}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        {/* Comparables */}
+        {comps?.similarCompanies && comps.similarCompanies.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Comparables</Text>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.th, { flex: 2 }]}>Company</Text>
+              <Text style={[styles.th, { flex: 2 }]}>Similarity</Text>
+              <Text style={[styles.th, { flex: 2 }]}>Outcome</Text>
+              <Text style={[styles.th, { flex: 3 }]}>Lesson</Text>
+            </View>
+            {comps.similarCompanies.map((c, i) => (
+              <View key={i} style={styles.tableRow}>
+                <Text style={[styles.td, { flex: 2, fontFamily: "Helvetica-Bold" }]}>
+                  {c?.name}
+                </Text>
+                <Text style={[styles.td, { flex: 2 }]}>{c?.similarity}</Text>
+                <Text style={[styles.td, { flex: 2 }]}>{c?.outcome}</Text>
+                <Text style={[styles.td, { flex: 3, color: GRAY }]}>{c?.lesson}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <Footer date={today} />
+      </Page>
     </Document>
   );
 }

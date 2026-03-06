@@ -3,13 +3,20 @@
 import { useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
-import { AnalysisResult, Verdict } from "@/types/analysis";
+import { AnalysisResult } from "@/types/analysis";
 import Link from "next/link";
 import ReportOutput from "@/components/ReportOutput";
 
 const ReportPDFDownload = dynamic(() => import("@/components/ReportPDFDownload"), { ssr: false });
 
-const VERDICT_BADGE: Record<Verdict, string> = {
+// V2 verdict badges
+const VERDICT_BADGE: Record<string, string> = {
+  "STRONG PASS": "bg-[var(--vl-green)]/20 text-[var(--vl-green)] border-[var(--vl-green)]/30",
+  "PASS": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  "CONDITIONAL": "bg-[var(--vl-amber)]/20 text-[var(--vl-amber)] border-[var(--vl-amber)]/30",
+  "WATCH": "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  "DECLINE": "bg-[var(--vl-red)]/20 text-[var(--vl-red)] border-[var(--vl-red)]/30",
+  // Legacy V1
   "AVANÇAR": "bg-[var(--vl-green)]/20 text-[var(--vl-green)] border-[var(--vl-green)]/30",
   "PIVOTAR": "bg-[var(--vl-amber)]/20 text-[var(--vl-amber)] border-[var(--vl-amber)]/30",
   "DESCARTAR": "bg-[var(--vl-red)]/20 text-[var(--vl-red)] border-[var(--vl-red)]/30",
@@ -72,13 +79,18 @@ export default function HistoryPage() {
   }
 
   function canDownloadPdf(a: AnalysisResult): boolean {
-    return !!(
-      a.report_json &&
-      a.report_json.summary &&
-      a.report_json.scores &&
-      a.report_json.tam &&
-      a.report_json.competitors
-    );
+    // V2: check for meta field
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rj = a.report_json as any;
+    return !!(rj && (rj.meta || (rj.summary && rj.scores && rj.tam)));
+  }
+
+  function getVersionLabel(a: AnalysisResult): string | null {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rj = a.report_json as any;
+    if (rj?.meta?.modelVersion) return "V2";
+    if (rj?.summary) return "V1";
+    return null;
   }
 
   return (
@@ -126,8 +138,17 @@ export default function HistoryPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-display font-bold text-sm truncate">{a.project_name || a.file_name}</p>
-                      {/* Icons for site/github */}
-                      {a.report_json?.produto_modo === "site" && <span title="Site analisado" className="text-xs">🌐</span>}
+                      {/* Version badge */}
+                      {getVersionLabel(a) && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                          getVersionLabel(a) === "V2"
+                            ? "bg-[var(--vl-gold)]/20 text-[var(--vl-gold)]"
+                            : "bg-[var(--vl-bg2)] text-[var(--vl-text3)]"
+                        }`}>
+                          {getVersionLabel(a)}
+                        </span>
+                      )}
+                      {/* GitHub icon */}
                       {a.report_json?.github_status && a.report_json.github_status !== "sem_github" && (
                         <span title="GitHub analisado" className="text-xs">💻</span>
                       )}
@@ -143,15 +164,9 @@ export default function HistoryPage() {
 
                   <span className="font-display font-bold text-2xl text-[var(--vl-gold)]">{a.score}</span>
 
-                  <span className={`text-xs px-3 py-1 rounded-full border font-medium ${VERDICT_BADGE[a.verdict] ?? ""}`}>
+                  <span className={`text-xs px-3 py-1 rounded-full border font-medium ${VERDICT_BADGE[a.verdict] ?? "bg-[var(--vl-bg2)] text-[var(--vl-text3)] border-[var(--vl-border)]"}`}>
                     {a.verdict}
                   </span>
-
-                  {a.report_json?.launch_readiness_score != null && (
-                    <span className="text-xs px-2 py-1 rounded-full border border-blue-500/30 bg-blue-500/20 text-blue-400 font-medium">
-                      🚀 {a.report_json.launch_readiness_score}%
-                    </span>
-                  )}
                 </div>
 
                 {/* Action buttons */}

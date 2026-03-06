@@ -122,9 +122,9 @@ export default function Home() {
           <div className="max-w-2xl mx-auto space-y-6">
             <div className="text-center space-y-2 pt-8">
               <h1 className="font-display text-4xl font-bold text-[var(--vl-text)]">
-                Analise seu <span className="text-[var(--vl-gold)]">PRD</span>
+                Analise seu <span className="text-[var(--vl-gold)]">Pitch Deck</span>
               </h1>
-              <p className="text-[var(--vl-text3)]">Envie seu PRD para análise com IA</p>
+              <p className="text-[var(--vl-text3)]">4 agentes IA especializados · Análise institucional · V2</p>
             </div>
 
             <UploadZone onFileSelected={(f) => setSelectedFile(f)} isLoading={isLoading} />
