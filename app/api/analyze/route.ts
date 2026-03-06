@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { extractText as extractPdfText } from "unpdf";
 import mammoth from "mammoth";
 import { getServiceSupabase } from "@/lib/supabase";
+import type { GithubStatus } from "@/types/analysis";
 
+// ------- File text extraction -------
 async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   if (mimeType === "application/pdf") {
     const { text } = await extractPdfText(new Uint8Array(buffer), { mergePages: true });
@@ -25,11 +27,197 @@ async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   throw new Error(`Unsupported file type: ${mimeType}`);
 }
 
+// ------- GitHub helpers -------
+interface GithubResult {
+  status: GithubStatus;
+  context: string; // extra text to inject into prompt
+}
+
+function parseGithubOwnerRepo(url: string): { owner: string; repo: string } | null {
+  try {
+    const u = new URL(url);
+    const parts = u.pathname.replace(/^\//, "").replace(/\.git$/, "").split("/");
+    if (parts.length >= 2) return { owner: parts[0], repo: parts[1] };
+  } catch {
+    // invalid URL
+  }
+  return null;
+}
+
+const KNOWN_PACKAGES = [
+  "stripe", "mercadopago", "hotmart",
+  "@supabase/supabase-js", "supabase",
+  "prisma", "@prisma/client",
+  "resend", "nodemailer",
+  "next-auth", "@clerk/nextjs", "clerk",
+  "firebase", "firebase-admin",
+  "paddle", "@paddle/paddle-node-sdk",
+];
+
+function analyzePackageJson(content: string): string {
+  try {
+    const pkg = JSON.parse(content);
+    const allDeps = {
+      ...((pkg.dependencies as Record<string, string>) || {}),
+      ...((pkg.devDependencies as Record<string, string>) || {}),
+    };
+
+    const depNames = Object.keys(allDeps);
+    const scripts = Object.keys((pkg.scripts as Record<string, string>) || {});
+    const found = KNOWN_PACKAGES.filter((p) => depNames.includes(p));
+
+    const lines: string[] = [];
+    lines.push(`[ANÁLISE VIA PACKAGE.JSON LOCAL]`);
+    lines.push(`Nome do projeto: ${pkg.name || "desconhecido"}`);
+    lines.push(`Total de dependências: ${depNames.length}`);
+    if (found.length > 0) {
+      lines.push(`Dependências notáveis encontradas: ${found.join(", ")}`);
+    }
+    if (scripts.length > 0) {
+      lines.push(`Scripts disponíveis: ${scripts.join(", ")}`);
+    }
+    lines.push(`\nNota: README, .env.example e estrutura de diretórios NÃO verificados (apenas package.json disponível).`);
+
+    return lines.join("\n");
+  } catch {
+    return "[Erro ao parsear package.json]";
+  }
+}
+
+async function resolveGithub(
+  githubUrl: string | null,
+  githubToken: string | null,    // Token usado apenas neste request, não persistido
+  packageJsonFile: File | null,
+): Promise<GithubResult> {
+  // No GitHub URL provided
+  if (!githubUrl) {
+    return { status: "sem_github", context: "" };
+  }
+
+  const parsed = parseGithubOwnerRepo(githubUrl);
+  if (!parsed) {
+    return { status: "sem_github", context: "" };
+  }
+
+  const { owner, repo } = parsed;
+
+  // STRATEGY B — package.json uploaded directly
+  if (packageJsonFile) {
+    const buf = await packageJsonFile.arrayBuffer();
+    const content = Buffer.from(buf).toString("utf-8");
+    return {
+      status: "via_package_json",
+      context: analyzePackageJson(content),
+    };
+  }
+
+  // STRATEGY A — Token provided
+  if (githubToken) {
+    // Token usado apenas neste request, não persistido
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      Authorization: `Bearer ${githubToken}`,
+    };
+
+    try {
+      // Try fetching package.json from repo
+      const pkgRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/package.json`,
+        { headers },
+      );
+
+      if (pkgRes.ok) {
+        const pkgData = await pkgRes.json();
+        const content = Buffer.from(pkgData.content, "base64").toString("utf-8");
+
+        // Also try README
+        let readmeContent = "";
+        const readmeRes = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/contents/README.md`,
+          { headers },
+        );
+        if (readmeRes.ok) {
+          const readmeData = await readmeRes.json();
+          readmeContent = Buffer.from(readmeData.content, "base64").toString("utf-8");
+        }
+
+        const lines: string[] = [];
+        lines.push(`[REPOSITÓRIO GITHUB VERIFICADO — ${owner}/${repo}]`);
+        lines.push(`✅ Repositório verificado com sucesso.`);
+        lines.push(`\n--- package.json ---`);
+        lines.push(content);
+        if (readmeContent) {
+          lines.push(`\n--- README.md ---`);
+          lines.push(readmeContent.slice(0, 3000));
+        }
+
+        return { status: "verificado", context: lines.join("\n") };
+      }
+
+      // Token provided but fetch failed — fall through to Strategy C
+    } catch {
+      // Network error — fall through
+    }
+  }
+
+  // STRATEGY C — Public repo (no token) or token failed
+  const pubHeaders: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+  };
+
+  try {
+    const pkgRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/package.json`,
+      { headers: pubHeaders },
+    );
+
+    if (pkgRes.ok) {
+      const pkgData = await pkgRes.json();
+      const content = Buffer.from(pkgData.content, "base64").toString("utf-8");
+
+      let readmeContent = "";
+      const readmeRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/README.md`,
+        { headers: pubHeaders },
+      );
+      if (readmeRes.ok) {
+        const readmeData = await readmeRes.json();
+        readmeContent = Buffer.from(readmeData.content, "base64").toString("utf-8");
+      }
+
+      const lines: string[] = [];
+      lines.push(`[REPOSITÓRIO GITHUB VERIFICADO — ${owner}/${repo}]`);
+      lines.push(`✅ Repositório verificado com sucesso.`);
+      lines.push(`\n--- package.json ---`);
+      lines.push(content);
+      if (readmeContent) {
+        lines.push(`\n--- README.md ---`);
+        lines.push(readmeContent.slice(0, 3000));
+      }
+
+      return { status: "verificado", context: lines.join("\n") };
+    }
+  } catch {
+    // Network error
+  }
+
+  // Repo is private or inaccessible — graceful fallback
+  return {
+    status: "privado_sem_acesso",
+    context: `[GITHUB INACESSÍVEL — ${owner}/${repo}]\nGitHub inacessível — itens técnicos não verificados.\nMarque TODOS os itens técnicos como nao_verificado.\nNão invente ou assuma dependências.`,
+  };
+}
+
+// ------- Main POST handler -------
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const createdBy = (formData.get("created_by") as string) || "unknown";
+    const githubUrl = (formData.get("githubUrl") as string) || null;
+    // Token usado apenas neste request, não persistido
+    const githubToken = (formData.get("githubToken") as string) || null;
+    const packageJsonFile = (formData.get("packageJsonFile") as File | null) || null;
 
     if (!file) {
       return NextResponse.json(
@@ -50,15 +238,27 @@ export async function POST(request: Request) {
       );
     }
 
-    // Gemini analysis
+    // Resolve GitHub (strategies A/B/C)
+    const github = await resolveGithub(githubUrl, githubToken, packageJsonFile);
+
+    // Build prompt with GitHub context
     const { geminiModel } = await import("@/lib/gemini");
     const { VENTURELENS_SYSTEM_PROMPT } = await import("@/lib/playbook");
 
-    const prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalise este PRD:\n\n${textoExtraido}`;
+    let prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalise este PRD:\n\n${textoExtraido}`;
+
+    if (github.context) {
+      prompt += `\n\n--- DADOS TÉCNICOS DO REPOSITÓRIO ---\n${github.context}`;
+    }
+
+    if (github.status !== "sem_github") {
+      prompt += `\n\nINCLUA no report_json o campo "github_status": "${github.status}"`;
+    }
+
     const result = await geminiModel.generateContent(prompt);
     const text = result.response.text();
 
-    console.log("Gemini raw response:", text);
+    console.log("Gemini raw response (first 500):", text.slice(0, 500));
 
     // Clean markdown fences and parse JSON
     const cleaned = text
@@ -66,6 +266,11 @@ export async function POST(request: Request) {
       .replace(/```/g, "")
       .trim();
     const d = JSON.parse(cleaned);
+
+    // Ensure github_status is set even if Gemini didn't return it
+    if (d.report_json && github.status !== "sem_github") {
+      d.report_json.github_status = d.report_json.github_status || github.status;
+    }
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();

@@ -23,6 +23,8 @@ export interface ScoreBreakdown {
   revenue: number;
 }
 
+export type GithubStatus = "verificado" | "via_package_json" | "privado_sem_acesso" | "sem_github";
+
 export interface ReportJson {
   summary: string;
   scores: ScoreBreakdown;
@@ -34,6 +36,7 @@ export interface ReportJson {
   next_steps: string;
   strengths: string[];
   weaknesses: string[];
+  github_status?: GithubStatus;
 }
 
 export type Verdict = "AVANÇAR" | "PIVOTAR" | "DESCARTAR";

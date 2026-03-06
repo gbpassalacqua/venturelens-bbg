@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import ScoreCard from "@/components/ScoreCard";
 import FeatureMatrix from "@/components/FeatureMatrix";
+import LaunchChecklist from "@/components/LaunchChecklist";
 import { AnalysisResult } from "@/types/analysis";
 
 const ReportPDFDownload = dynamic(() => import("@/components/ReportPDFDownload"), { ssr: false });
@@ -42,6 +43,9 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
           <ReportPDFDownload result={result} />
         </div>
       </div>
+
+      {/* GitHub private repo warning */}
+      <LaunchChecklist githubStatus={r.github_status} />
 
       {/* Layout: Sidebar + Main */}
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">

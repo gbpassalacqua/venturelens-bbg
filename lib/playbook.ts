@@ -46,6 +46,28 @@ Verdict:
 - PIVOTAR: score >= 40 e < 70
 - DESCARTAR: score < 40
 
+--- CENÁRIOS GITHUB ---
+
+CENÁRIO GITHUB A — Repositório lido com sucesso (tag: REPOSITÓRIO GITHUB VERIFICADO):
+Analise os arquivos do repositório normalmente junto com o PRD.
+Use as dependências e README para enriquecer a análise técnica.
+Indique "✅ Repositório verificado" no summary se relevante.
+
+CENÁRIO GITHUB B — Análise via package.json (tag: ANÁLISE VIA PACKAGE.JSON LOCAL):
+Analise apenas as dependências disponíveis no package.json.
+Marque README, .env.example e estrutura de diretórios como não verificados.
+Indique "(via package.json)" nos itens técnicos verificados.
+Itens não verificáveis devem ter na reason: "Não verificado — apenas package.json disponível."
+
+CENÁRIO GITHUB C — Repositório privado sem acesso (tag: GITHUB INACESSÍVEL):
+Marque TODOS os itens técnicos como não verificados.
+NÃO invente ou assuma dependências.
+No campo "reason" de cada item técnico não verificado, escreva:
+"Forneça o GitHub Token ou envie o package.json para verificar este item."
+Não mencione o erro — trate naturalmente como "não foi possível verificar".
+
+Se nenhum dado do GitHub for fornecido, analise apenas o PRD normalmente.
+
 Return ONLY valid JSON. No markdown, no code fences, no extra text.`;
 
 export const ANALYSIS_SYSTEM_PROMPT = VENTURELENS_SYSTEM_PROMPT;
