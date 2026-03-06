@@ -90,22 +90,36 @@ async function resolveGithub(
 ): Promise<GithubResult> {
   // Token lido da variável de ambiente do servidor — nunca exposto ao cliente
   const githubToken = process.env.GITHUB_TOKEN || null;
+
+  console.log("=== GITHUB DEBUG ===");
+  console.log("githubUrl:", githubUrl);
+  console.log("githubToken existe:", !!githubToken);
+  console.log("packageJsonFile existe:", !!packageJsonFile);
+
   // No GitHub URL provided
   if (!githubUrl) {
+    console.log("Resultado: sem_github (URL não fornecida)");
+    console.log("===================");
     return { status: "sem_github", context: "" };
   }
 
   const parsed = parseGithubOwnerRepo(githubUrl);
   if (!parsed) {
+    console.log("Resultado: sem_github (URL inválida)");
+    console.log("===================");
     return { status: "sem_github", context: "" };
   }
 
   const { owner, repo } = parsed;
+  console.log("Parsed repo:", owner, "/", repo);
 
   // STRATEGY B — package.json uploaded directly
   if (packageJsonFile) {
+    console.log("Strategy B: package.json upload");
     const buf = await packageJsonFile.arrayBuffer();
     const content = Buffer.from(buf).toString("utf-8");
+    console.log("package.json size:", content.length, "bytes");
+    console.log("===================");
     return {
       status: "via_package_json",
       context: analyzePackageJson(content),
@@ -114,32 +128,36 @@ async function resolveGithub(
 
   // STRATEGY A — Token from env var
   if (githubToken) {
+    console.log("Strategy A: usando token do env var");
     const headers: Record<string, string> = {
       Accept: "application/vnd.github.v3+json",
       Authorization: `Bearer ${githubToken}`,
     };
 
     try {
-      // Try fetching package.json from repo
-      const pkgRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/package.json`,
-        { headers },
-      );
+      const pkgUrl = `https://api.github.com/repos/${owner}/${repo}/contents/package.json`;
+      console.log("Fetching:", pkgUrl);
+      const pkgRes = await fetch(pkgUrl, { headers });
+      console.log("GitHub API status (package.json):", pkgRes.status);
 
       if (pkgRes.ok) {
         const pkgData = await pkgRes.json();
         const content = Buffer.from(pkgData.content, "base64").toString("utf-8");
+        console.log("package.json encontrado:", true, "- size:", content.length);
 
-        // Also try README
         let readmeContent = "";
         const readmeRes = await fetch(
           `https://api.github.com/repos/${owner}/${repo}/contents/README.md`,
           { headers },
         );
+        console.log("GitHub API status (README):", readmeRes.status);
         if (readmeRes.ok) {
           const readmeData = await readmeRes.json();
           readmeContent = Buffer.from(readmeData.content, "base64").toString("utf-8");
         }
+        console.log("README encontrado:", !!readmeContent);
+        console.log("Resultado: verificado");
+        console.log("===================");
 
         const lines: string[] = [];
         lines.push(`[REPOSITÓRIO GITHUB VERIFICADO — ${owner}/${repo}]`);
@@ -154,13 +172,14 @@ async function resolveGithub(
         return { status: "verificado", context: lines.join("\n") };
       }
 
-      // Token provided but fetch failed — fall through to Strategy C
-    } catch {
-      // Network error — fall through
+      console.log("Token fetch falhou, caindo para Strategy C");
+    } catch (err) {
+      console.log("Strategy A error:", err);
     }
   }
 
   // STRATEGY C — Public repo (no token) or token failed
+  console.log("Strategy C: tentando sem auth");
   const pubHeaders: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
   };
@@ -170,6 +189,7 @@ async function resolveGithub(
       `https://api.github.com/repos/${owner}/${repo}/contents/package.json`,
       { headers: pubHeaders },
     );
+    console.log("GitHub API status (public):", pkgRes.status);
 
     if (pkgRes.ok) {
       const pkgData = await pkgRes.json();
@@ -185,6 +205,11 @@ async function resolveGithub(
         readmeContent = Buffer.from(readmeData.content, "base64").toString("utf-8");
       }
 
+      console.log("package.json encontrado (public):", true);
+      console.log("README encontrado (public):", !!readmeContent);
+      console.log("Resultado: verificado (public)");
+      console.log("===================");
+
       const lines: string[] = [];
       lines.push(`[REPOSITÓRIO GITHUB VERIFICADO — ${owner}/${repo}]`);
       lines.push(`✅ Repositório verificado com sucesso.`);
@@ -197,11 +222,12 @@ async function resolveGithub(
 
       return { status: "verificado", context: lines.join("\n") };
     }
-  } catch {
-    // Network error
+  } catch (err) {
+    console.log("Strategy C error:", err);
   }
 
-  // Repo is private or inaccessible — graceful fallback
+  console.log("Resultado: privado_sem_acesso");
+  console.log("===================");
   return {
     status: "privado_sem_acesso",
     context: `[GITHUB INACESSÍVEL — ${owner}/${repo}]\nGitHub inacessível — itens técnicos não verificados.\nMarque TODOS os itens técnicos como nao_verificado.\nNão invente ou assuma dependências.`,
@@ -238,6 +264,11 @@ export async function POST(request: Request) {
 
     // Resolve GitHub (strategies A/B/C)
     const github = await resolveGithub(githubUrl, packageJsonFile);
+    console.log("=== GITHUB RESULT ===");
+    console.log("status:", github.status);
+    console.log("context length:", github.context.length);
+    console.log("context preview:", github.context.slice(0, 200));
+    console.log("====================");
 
     // Build prompt with GitHub context
     const { geminiModel } = await import("@/lib/gemini");
