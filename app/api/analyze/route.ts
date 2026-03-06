@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import mammoth from "mammoth";
 import { getServiceSupabase } from "@/lib/supabase";
 import { AnalysisResult } from "@/types/analysis";
@@ -28,9 +28,9 @@ async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   throw new Error(`Unsupported file type: ${mimeType}`);
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const formData = await req.formData();
+    const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
     if (!file) {
@@ -58,12 +58,17 @@ export async function POST(req: NextRequest) {
 
     const prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalise este PRD:\n\n${textoExtraido}`;
     const result = await geminiModel.generateContent(prompt);
-    const responseText = result.response.text();
+    const text = result.response.text();
 
-    // Extrair JSON da resposta
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON não encontrado na resposta");
-    const analysisData = JSON.parse(jsonMatch[0]);
+    // Debug: ver o que o Gemini retornou
+    console.log("Gemini raw response:", text);
+
+    // Limpar markdown fences e extrair JSON
+    const cleaned = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+    const analysisData = JSON.parse(cleaned);
 
     const analysis: AnalysisResult = {
       id: crypto.randomUUID(),
