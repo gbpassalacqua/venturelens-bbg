@@ -86,9 +86,10 @@ function analyzePackageJson(content: string): string {
 
 async function resolveGithub(
   githubUrl: string | null,
-  githubToken: string | null,    // Token usado apenas neste request, não persistido
   packageJsonFile: File | null,
 ): Promise<GithubResult> {
+  // Token lido da variável de ambiente do servidor — nunca exposto ao cliente
+  const githubToken = process.env.GITHUB_TOKEN || null;
   // No GitHub URL provided
   if (!githubUrl) {
     return { status: "sem_github", context: "" };
@@ -111,9 +112,8 @@ async function resolveGithub(
     };
   }
 
-  // STRATEGY A — Token provided
+  // STRATEGY A — Token from env var
   if (githubToken) {
-    // Token usado apenas neste request, não persistido
     const headers: Record<string, string> = {
       Accept: "application/vnd.github.v3+json",
       Authorization: `Bearer ${githubToken}`,
@@ -215,8 +215,6 @@ export async function POST(request: Request) {
     const file = formData.get("file") as File | null;
     const createdBy = (formData.get("created_by") as string) || "unknown";
     const githubUrl = (formData.get("githubUrl") as string) || null;
-    // Token usado apenas neste request, não persistido
-    const githubToken = (formData.get("githubToken") as string) || null;
     const packageJsonFile = (formData.get("packageJsonFile") as File | null) || null;
 
     if (!file) {
@@ -239,7 +237,7 @@ export async function POST(request: Request) {
     }
 
     // Resolve GitHub (strategies A/B/C)
-    const github = await resolveGithub(githubUrl, githubToken, packageJsonFile);
+    const github = await resolveGithub(githubUrl, packageJsonFile);
 
     // Build prompt with GitHub context
     const { geminiModel } = await import("@/lib/gemini");
