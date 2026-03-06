@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import pdf from "pdf-parse";
 import mammoth from "mammoth";
 import { getServiceSupabase } from "@/lib/supabase";
 import { AnalysisResult } from "@/types/analysis";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
+
 async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   if (mimeType === "application/pdf") {
-    const data = await pdf(buffer);
+    const data = await pdfParse(buffer);
     return data.text;
   }
 
