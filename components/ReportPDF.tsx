@@ -519,6 +519,169 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
           Gerado por VentureLens BBG · BBG Digital Products · {today}
         </Text>
       </Page>
+
+      {/* Page 3 — Tech Analysis (if exists) */}
+      {r.analise_tecnica && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>VentureLens BBG</Text>
+              <Text style={styles.headerSub}>Análise Técnica do Código</Text>
+            </View>
+            <Text style={styles.headerDate}>{result.project_name}</Text>
+          </View>
+          <View style={styles.divider} />
+
+          <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>
+            Análise Técnica — {r.analise_tecnica.arquivos_analisados} arquivos analisados
+          </Text>
+
+          {/* Prontidão */}
+          <View style={styles.section}>
+            <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Prontidão para Produção</Text>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+              {([
+                { k: "usuario_novo" as const, l: "Usuário" },
+                { k: "autenticacao" as const, l: "Auth" },
+                { k: "feature_principal" as const, l: "Feature" },
+                { k: "pagamento" as const, l: "Pgto" },
+                { k: "email" as const, l: "Email" },
+              ]).map(({ k, l }) => {
+                const v = r.analise_tecnica!.prontidao[k];
+                const icon = v === "ok" ? "✅" : v === "parcial" ? "⚠️" : "❌";
+                return (
+                  <View key={k} style={{ flex: 1, alignItems: "center", padding: 6, borderWidth: 1, borderColor: LIGHTGRAY, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 14, marginBottom: 2 }}>{icon}</Text>
+                    <Text style={{ fontSize: 7, color: GRAY }}>{l}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Tech Scores */}
+          {([
+            { key: "fluxo_end_to_end", label: "Fluxo E2E" },
+            { key: "pagamento", label: "Pagamento" },
+            { key: "autenticacao", label: "Autenticação" },
+            { key: "variaveis_ambiente", label: "Env Vars" },
+            { key: "qualidade_codigo", label: "Qualidade" },
+          ] as const).map(({ key, label }) => {
+            const item = r.analise_tecnica![key];
+            const score = item.score;
+            const color = score >= 7 ? GREEN : score >= 4 ? AMBER : RED;
+            return (
+              <View key={key} style={{ marginBottom: 8 }}>
+                <View style={styles.barRow}>
+                  <Text style={[styles.barLabel, { width: 70 }]}>{label}</Text>
+                  <View style={[styles.barTrack, { flex: 1 }]}>
+                    <View style={[styles.barFill, { width: `${score * 10}%`, backgroundColor: color }]} />
+                  </View>
+                  <Text style={[styles.barValue, { width: 20 }]}>{score}</Text>
+                </View>
+                <Text style={{ fontSize: 7, color: GRAY, marginLeft: 70 }}>{item.detalhe}</Text>
+              </View>
+            );
+          })}
+
+          {/* Riscos Técnicos */}
+          {r.analise_tecnica.riscos_tecnicos?.length > 0 && (
+            <View style={styles.section}>
+              <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Riscos Técnicos</Text>
+              {r.analise_tecnica.riscos_tecnicos.map((rt, i) => (
+                <View key={i} style={{ marginBottom: 6, padding: 6, borderWidth: 1, borderColor: LIGHTGRAY, borderRadius: 4 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <Text style={[styles.riskTag, { backgroundColor: rt.severidade === "alto" ? RED : rt.severidade === "medio" ? AMBER : GREEN }]}>
+                      {rt.severidade.toUpperCase()}
+                    </Text>
+                    <Text style={{ fontSize: 9, color: DARK, flex: 1 }}>{rt.risco}</Text>
+                  </View>
+                  <Text style={{ fontSize: 7, color: GRAY }}>Solução: {rt.solucao}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <Text style={styles.footer}>Gerado por VentureLens BBG · Análise Técnica · {today}</Text>
+        </Page>
+      )}
+
+      {/* Page 4 — Security Audit (if exists) */}
+      {r.security_audit && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>VentureLens BBG</Text>
+              <Text style={styles.headerSub}>Auditoria de Segurança</Text>
+            </View>
+            <Text style={styles.headerDate}>{result.project_name}</Text>
+          </View>
+          <View style={styles.divider} />
+
+          {/* Score + Nivel */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <View style={[styles.scoreCircle, { width: 60, height: 60, borderRadius: 30, borderColor: r.security_audit.score_geral >= 80 ? GREEN : r.security_audit.score_geral >= 40 ? AMBER : RED }]}>
+              <Text style={[styles.scoreNum, { fontSize: 22, color: r.security_audit.score_geral >= 80 ? GREEN : r.security_audit.score_geral >= 40 ? AMBER : RED }]}>
+                {r.security_audit.score_geral}
+              </Text>
+            </View>
+            <View>
+              <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: DARK }}>{r.security_audit.nivel}</Text>
+              <Text style={{ fontSize: 8, color: GRAY }}>Score de Segurança</Text>
+            </View>
+          </View>
+
+          {/* Critical vulnerabilities */}
+          {r.security_audit.vulnerabilidades_criticas?.length > 0 && (
+            <View style={{ padding: 8, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: RED, borderRadius: 6, marginBottom: 12 }}>
+              <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: RED, marginBottom: 4 }}>
+                {r.security_audit.vulnerabilidades_criticas.length} vulnerabilidade(s) crítica(s)
+              </Text>
+              {r.security_audit.vulnerabilidades_criticas.map((v, i) => (
+                <View key={i} style={{ marginBottom: 4 }}>
+                  <Text style={{ fontSize: 8, color: DARK }}>{v.descricao} — {v.arquivo}</Text>
+                  <Text style={{ fontSize: 7, color: GRAY }}>Correção: {v.correcao_imediata}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Security Rules */}
+          <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Regras de Segurança</Text>
+          {r.security_audit.regras?.map((rule, i) => {
+            const statusIcon = rule.status === "ok" ? "✅" : rule.status === "critico" ? "🔴" : rule.status === "alerta" ? "⚠️" : "➖";
+            const statusColor = rule.status === "ok" ? GREEN : rule.status === "critico" ? RED : rule.status === "alerta" ? AMBER : GRAY;
+            return (
+              <View key={i} style={{ marginBottom: 5, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: LIGHTGRAY }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Text style={{ fontSize: 9 }}>{statusIcon}</Text>
+                  <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: statusColor, flex: 1 }}>{rule.regra}</Text>
+                </View>
+                {rule.detalhe && <Text style={{ fontSize: 7, color: GRAY, marginTop: 1 }}>{rule.detalhe}</Text>}
+                {rule.correcao && rule.status !== "ok" && <Text style={{ fontSize: 7, color: DARK, marginTop: 1 }}>→ {rule.correcao}</Text>}
+              </View>
+            );
+          })}
+
+          {/* Deploy Checklist */}
+          {r.security_audit.checklist_deploy?.length > 0 && (
+            <View style={styles.section}>
+              <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Checklist de Deploy</Text>
+              {r.security_audit.checklist_deploy.map((item, i) => {
+                const icon = item.status === "ok" ? "✅" : item.status === "critico" ? "🔴" : "⚠️";
+                return (
+                  <View key={i} style={{ flexDirection: "row", gap: 4, marginBottom: 3 }}>
+                    <Text style={{ fontSize: 8 }}>{icon}</Text>
+                    <Text style={{ fontSize: 8, color: DARK }}>{item.item}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          <Text style={styles.footer}>Gerado por VentureLens BBG · Auditoria de Segurança · {today}</Text>
+        </Page>
+      )}
     </Document>
   );
 }

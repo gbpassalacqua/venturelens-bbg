@@ -78,7 +78,8 @@ export default function Home() {
     extraSteps.push({ icon: "📄", label: "Lendo HTML do produto..." });
   }
   if (githubUrl.trim()) {
-    extraSteps.push({ icon: "💻", label: "Verificando repositório GitHub..." });
+    extraSteps.push({ icon: "💻", label: "Lendo arquivos do código... (pode levar 30s)" });
+    extraSteps.push({ icon: "🔒", label: "Auditando segurança..." });
   }
 
   const hasRepo = !!selectedRepo;

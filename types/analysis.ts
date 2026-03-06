@@ -30,6 +30,73 @@ export interface ChecklistItem {
   status: string;
 }
 
+// --- Tech Analysis ---
+
+export interface TechScoreItem {
+  score: number;
+  detalhe: string;
+}
+
+export interface TechScoreWithStatus extends TechScoreItem {
+  status: string; // "implementado" | "iniciado" | "ausente"
+}
+
+export interface TechProntidao {
+  usuario_novo: string; // "ok" | "parcial" | "nao"
+  autenticacao: string;
+  feature_principal: string;
+  pagamento: string;
+  email: string;
+}
+
+export interface TechRisco {
+  risco: string;
+  severidade: string; // "alto" | "medio" | "baixo"
+  solucao: string;
+}
+
+export interface TechAnalysisData {
+  fluxo_end_to_end: TechScoreItem;
+  pagamento: TechScoreWithStatus;
+  autenticacao: TechScoreWithStatus;
+  variaveis_ambiente: TechScoreItem;
+  qualidade_codigo: TechScoreItem;
+  prontidao: TechProntidao;
+  riscos_tecnicos: TechRisco[];
+  arquivos_analisados: number;
+}
+
+// --- Security Audit ---
+
+export interface SecurityRule {
+  regra: string;
+  status: string; // "ok" | "alerta" | "critico" | "nao_aplicavel"
+  detalhe: string;
+  correcao: string;
+}
+
+export interface SecurityVulnerability {
+  descricao: string;
+  arquivo: string;
+  linha_aproximada: string;
+  correcao_imediata: string;
+}
+
+export interface SecurityChecklistItem {
+  item: string;
+  status: string; // "ok" | "pendente" | "critico"
+}
+
+export interface SecurityAuditData {
+  score_geral: number;
+  nivel: string; // "Inseguro" | "Básico" | "Adequado" | "Seguro" | "Excelente"
+  regras: SecurityRule[];
+  vulnerabilidades_criticas: SecurityVulnerability[];
+  checklist_deploy: SecurityChecklistItem[];
+}
+
+// --- Report JSON ---
+
 export interface ReportJson {
   summary: string;
   scores: ScoreBreakdown;
@@ -47,6 +114,8 @@ export interface ReportJson {
   launch_checklist?: ChecklistItem[];
   top3_para_lancar?: string[];
   produto_modo?: string;
+  analise_tecnica?: TechAnalysisData;
+  security_audit?: SecurityAuditData;
 }
 
 export type Verdict = "AVANÇAR" | "PIVOTAR" | "DESCARTAR";

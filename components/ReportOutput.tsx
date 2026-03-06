@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import ScoreCard from "@/components/ScoreCard";
 import FeatureMatrix from "@/components/FeatureMatrix";
 import LaunchChecklist from "@/components/LaunchChecklist";
+import TechAnalysis from "@/components/TechAnalysis";
+import SecurityAudit from "@/components/SecurityAudit";
 import { AnalysisResult } from "@/types/analysis";
 
 const ReportPDFDownload = dynamic(() => import("@/components/ReportPDFDownload"), { ssr: false });
@@ -153,6 +155,12 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
           </ul>
         </div>
       </div>
+
+      {/* 🔬 Análise Técnica */}
+      {r.analise_tecnica && <TechAnalysis analise_tecnica={r.analise_tecnica} />}
+
+      {/* 🔒 Auditoria de Segurança */}
+      {r.security_audit && <SecurityAudit security_audit={r.security_audit} />}
 
       {/* Feature Matrix */}
       <div>
