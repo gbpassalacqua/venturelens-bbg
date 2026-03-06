@@ -1,0 +1,104 @@
+import { NextRequest, NextResponse } from "next/server";
+import pdf from "pdf-parse";
+import mammoth from "mammoth";
+import { getServiceSupabase } from "@/lib/supabase";
+import { AnalysisResult } from "@/types/analysis";
+
+async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
+  if (mimeType === "application/pdf") {
+    const data = await pdf(buffer);
+    return data.text;
+  }
+
+  if (
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mimeType === "application/msword"
+  ) {
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value;
+  }
+
+  if (mimeType === "text/plain") {
+    return buffer.toString("utf-8");
+  }
+
+  throw new Error(`Unsupported file type: ${mimeType}`);
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+
+    if (!file) {
+      return NextResponse.json(
+        { success: false, error: "No file provided" },
+        { status: 400 }
+      );
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const textoExtraido = await extractText(buffer, file.type);
+
+    if (!textoExtraido || textoExtraido.trim().length < 50) {
+      return NextResponse.json(
+        { success: false, error: "Could not extract enough text from file" },
+        { status: 400 }
+      );
+    }
+
+    // Gemini analysis
+    const { geminiModel } = await import("@/lib/gemini");
+    const { VENTURELENS_SYSTEM_PROMPT } = await import("@/lib/playbook");
+
+    const prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalise este PRD:\n\n${textoExtraido}`;
+    const result = await geminiModel.generateContent(prompt);
+    const responseText = result.response.text();
+
+    // Extrair JSON da resposta
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("JSON não encontrado na resposta");
+    const analysisData = JSON.parse(jsonMatch[0]);
+
+    const analysis: AnalysisResult = {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      file_name: file.name,
+      overall_score: analysisData.overall_score,
+      scores: analysisData.scores,
+      summary: analysisData.summary,
+      strengths: analysisData.strengths,
+      weaknesses: analysisData.weaknesses,
+      features: analysisData.features,
+      recommendation: analysisData.recommendation,
+    };
+
+    // Save to Supabase
+    const supabase = getServiceSupabase();
+    await supabase.from("analyses").insert({
+      id: analysis.id,
+      created_at: analysis.created_at,
+      file_name: analysis.file_name,
+      overall_score: analysis.overall_score,
+      scores: analysis.scores,
+      summary: analysis.summary,
+      strengths: analysis.strengths,
+      weaknesses: analysis.weaknesses,
+      features: analysis.features,
+      recommendation: analysis.recommendation,
+    });
+
+    return NextResponse.json({ success: true, data: analysis });
+  } catch (error) {
+    console.error("Analysis error:", error);
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
+  }
+}
