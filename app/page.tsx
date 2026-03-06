@@ -50,7 +50,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <Link href="/history" className="text-sm text-[var(--vl-text2)] hover:text-[var(--vl-text)] transition-colors">
-              History
+              Histórico
             </Link>
             <div className="flex gap-1 bg-[var(--vl-bg2)] rounded-lg p-0.5">
               {USERS.map((u) => (
@@ -78,7 +78,7 @@ export default function Home() {
               <h1 className="font-display text-4xl font-bold text-[var(--vl-text)]">
                 Analise seu <span className="text-[var(--vl-gold)]">PRD</span>
               </h1>
-              <p className="text-[var(--vl-text3)]">Upload do documento para análise com IA</p>
+              <p className="text-[var(--vl-text3)]">Envie seu PRD para análise com IA</p>
             </div>
 
             <UploadZone onFileSelected={(f) => setSelectedFile(f)} isLoading={isLoading} />

@@ -50,7 +50,7 @@ export default function HistoryPage() {
       </nav>
 
       <div className="container mx-auto px-4 py-8 max-w-5xl">
-        <h1 className="font-display text-2xl font-bold mb-6">Histórico</h1>
+        <h1 className="font-display text-2xl font-bold mb-6">Histórico de Análises</h1>
 
         {loading && <p className="text-[var(--vl-text3)] animate-pulse text-center py-12">Carregando...</p>}
 

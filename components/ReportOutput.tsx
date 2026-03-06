@@ -1,13 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import ScoreCard from "@/components/ScoreCard";
 import FeatureMatrix from "@/components/FeatureMatrix";
 import { AnalysisResult } from "@/types/analysis";
+
+const ReportPDFDownload = dynamic(() => import("@/components/ReportPDFDownload"), { ssr: false });
+
+const TYPE_LABELS: Record<string, string> = {
+  direct: "direto",
+  indirect: "indireto",
+  emerging: "emergente",
+};
 
 const TYPE_COLORS: Record<string, string> = {
   direct: "bg-[var(--vl-red)]/20 text-[var(--vl-red)] border-[var(--vl-red)]/30",
   indirect: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   emerging: "bg-[var(--vl-green)]/20 text-[var(--vl-green)] border-[var(--vl-green)]/30",
+};
+
+const LEVEL_LABELS: Record<string, string> = {
+  high: "Alto",
+  medium: "Médio",
+  low: "Baixo",
 };
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -22,7 +37,10 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
     <div className="space-y-8 animate-fade-up">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl font-bold text-[var(--vl-gold)]">{result.project_name}</h2>
-        <span className="text-sm text-[var(--vl-text3)]">{result.file_name}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-[var(--vl-text3)]">{result.file_name}</span>
+          <ReportPDFDownload result={result} />
+        </div>
       </div>
 
       {/* Layout: Sidebar + Main */}
@@ -32,7 +50,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
         <div className="space-y-6">
           {/* Resumo Executivo */}
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-            <h3 className="font-display font-bold text-sm text-[var(--vl-text2)] mb-2">Resumo Executivo</h3>
+            <h3 className="font-display font-bold text-sm text-[var(--vl-text2)] mb-2">📋 Resumo Executivo</h3>
             <p className="text-sm italic text-[var(--vl-text2)] leading-relaxed">{r.summary}</p>
           </div>
 
@@ -53,7 +71,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
 
           {/* Recomendação */}
           <div className="rounded-xl border border-[var(--vl-gold)]/30 bg-[var(--vl-gold)]/5 p-5">
-            <h3 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">Recomendação</h3>
+            <h3 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">💡 Recomendação</h3>
             <p className="text-sm text-[var(--vl-text)]">{result.recommendation}</p>
           </div>
         </div>
@@ -62,7 +80,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
       {/* Concorrentes */}
       <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] overflow-hidden">
         <div className="px-5 py-3 border-b border-[var(--vl-border)]">
-          <h3 className="font-display font-bold text-sm">Concorrentes</h3>
+          <h3 className="font-display font-bold text-sm">⚔️ Concorrentes</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -79,7 +97,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                 <tr key={i} className="border-b border-[var(--vl-border)] last:border-0">
                   <td className="px-5 py-3 font-medium">{c.name}</td>
                   <td className="px-5 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[c.type] ?? ""}`}>{c.type}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[c.type] ?? ""}`}>{TYPE_LABELS[c.type] ?? c.type}</span>
                   </td>
                   <td className="px-5 py-3 font-mono text-[var(--vl-text2)]">{c.price}</td>
                   <td className="px-5 py-3 text-[var(--vl-text2)]">{c.weakness}</td>
@@ -92,16 +110,16 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
 
       {/* Riscos */}
       <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-        <h3 className="font-display font-bold text-sm mb-4">Riscos</h3>
+        <h3 className="font-display font-bold text-sm mb-4">⚠️ Riscos</h3>
         <div className="space-y-3">
           {r.risks.map((risk, i) => (
             <div key={i} className="flex items-start gap-3">
               <span className="text-[var(--vl-text2)] text-sm flex-1">{risk.description}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${LEVEL_COLORS[risk.likelihood]}`}>
-                P: {risk.likelihood}
+                P: {LEVEL_LABELS[risk.likelihood] ?? risk.likelihood}
               </span>
               <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${LEVEL_COLORS[risk.impact]}`}>
-                I: {risk.impact}
+                I: {LEVEL_LABELS[risk.impact] ?? risk.impact}
               </span>
             </div>
           ))}
@@ -134,13 +152,13 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
 
       {/* Feature Matrix */}
       <div>
-        <h3 className="font-display font-bold text-sm mb-4">Feature Matrix</h3>
+        <h3 className="font-display font-bold text-sm mb-4">🧩 Matriz de Features</h3>
         <FeatureMatrix mvp={result.mvp_features} v2={result.v2_features} cut={result.cut_features} />
       </div>
 
       {/* Próximo Passo */}
       <div className="rounded-xl border border-[var(--vl-gold)]/30 bg-[var(--vl-gold)]/5 p-5">
-        <h3 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">Próximo Passo</h3>
+        <h3 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">🚀 Próximo Passo</h3>
         <p className="text-sm text-[var(--vl-text)]">{r.next_steps}</p>
       </div>
     </div>

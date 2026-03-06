@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 
 const STEPS = [
-  { icon: "🤖", label: "Parsing PRD" },
-  { icon: "📊", label: "Pesquisando mercado" },
-  { icon: "💰", label: "Calculando TAM/SAM/SOM" },
-  { icon: "⚔️", label: "Analisando concorrentes" },
-  { icon: "⏱", label: "Avaliando timing" },
-  { icon: "⚠️", label: "Identificando riscos" },
-  { icon: "🎯", label: "Gerando score final" },
+  { icon: "🤖", label: "Lendo o PRD..." },
+  { icon: "📊", label: "Pesquisando o mercado..." },
+  { icon: "💰", label: "Calculando TAM/SAM/SOM..." },
+  { icon: "⚔️", label: "Mapeando concorrentes..." },
+  { icon: "⏱", label: "Avaliando timing de mercado..." },
+  { icon: "⚠️", label: "Identificando riscos..." },
+  { icon: "🎯", label: "Gerando score final..." },
 ];
 
 export default function LoadingSteps() {
