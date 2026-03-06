@@ -30,7 +30,7 @@ async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
 // ------- GitHub helpers -------
 interface GithubResult {
   status: GithubStatus;
-  context: string; // extra text to inject into prompt
+  context: string;
 }
 
 function parseGithubOwnerRepo(url: string): { owner: string; repo: string } | null {
@@ -88,38 +88,23 @@ async function resolveGithub(
   githubUrl: string | null,
   packageJsonFile: File | null,
 ): Promise<GithubResult> {
-  // Token lido da variável de ambiente do servidor — nunca exposto ao cliente
   const githubToken = process.env.GITHUB_TOKEN || null;
 
-  console.log("=== GITHUB DEBUG ===");
-  console.log("githubUrl:", githubUrl);
-  console.log("githubToken existe:", !!githubToken);
-  console.log("packageJsonFile existe:", !!packageJsonFile);
-
-  // No GitHub URL provided
   if (!githubUrl) {
-    console.log("Resultado: sem_github (URL não fornecida)");
-    console.log("===================");
     return { status: "sem_github", context: "" };
   }
 
   const parsed = parseGithubOwnerRepo(githubUrl);
   if (!parsed) {
-    console.log("Resultado: sem_github (URL inválida)");
-    console.log("===================");
     return { status: "sem_github", context: "" };
   }
 
   const { owner, repo } = parsed;
-  console.log("Parsed repo:", owner, "/", repo);
 
   // STRATEGY B — package.json uploaded directly
   if (packageJsonFile) {
-    console.log("Strategy B: package.json upload");
     const buf = await packageJsonFile.arrayBuffer();
     const content = Buffer.from(buf).toString("utf-8");
-    console.log("package.json size:", content.length, "bytes");
-    console.log("===================");
     return {
       status: "via_package_json",
       context: analyzePackageJson(content),
@@ -128,36 +113,30 @@ async function resolveGithub(
 
   // STRATEGY A — Token from env var
   if (githubToken) {
-    console.log("Strategy A: usando token do env var");
     const headers: Record<string, string> = {
       Accept: "application/vnd.github.v3+json",
       Authorization: `Bearer ${githubToken}`,
     };
 
     try {
-      const pkgUrl = `https://api.github.com/repos/${owner}/${repo}/contents/package.json`;
-      console.log("Fetching:", pkgUrl);
-      const pkgRes = await fetch(pkgUrl, { headers });
-      console.log("GitHub API status (package.json):", pkgRes.status);
+      const pkgRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/package.json`,
+        { headers },
+      );
 
       if (pkgRes.ok) {
         const pkgData = await pkgRes.json();
         const content = Buffer.from(pkgData.content, "base64").toString("utf-8");
-        console.log("package.json encontrado:", true, "- size:", content.length);
 
         let readmeContent = "";
         const readmeRes = await fetch(
           `https://api.github.com/repos/${owner}/${repo}/contents/README.md`,
           { headers },
         );
-        console.log("GitHub API status (README):", readmeRes.status);
         if (readmeRes.ok) {
           const readmeData = await readmeRes.json();
           readmeContent = Buffer.from(readmeData.content, "base64").toString("utf-8");
         }
-        console.log("README encontrado:", !!readmeContent);
-        console.log("Resultado: verificado");
-        console.log("===================");
 
         const lines: string[] = [];
         lines.push(`[REPOSITÓRIO GITHUB VERIFICADO — ${owner}/${repo}]`);
@@ -171,15 +150,12 @@ async function resolveGithub(
 
         return { status: "verificado", context: lines.join("\n") };
       }
-
-      console.log("Token fetch falhou, caindo para Strategy C");
     } catch (err) {
       console.log("Strategy A error:", err);
     }
   }
 
   // STRATEGY C — Public repo (no token) or token failed
-  console.log("Strategy C: tentando sem auth");
   const pubHeaders: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
   };
@@ -189,7 +165,6 @@ async function resolveGithub(
       `https://api.github.com/repos/${owner}/${repo}/contents/package.json`,
       { headers: pubHeaders },
     );
-    console.log("GitHub API status (public):", pkgRes.status);
 
     if (pkgRes.ok) {
       const pkgData = await pkgRes.json();
@@ -204,11 +179,6 @@ async function resolveGithub(
         const readmeData = await readmeRes.json();
         readmeContent = Buffer.from(readmeData.content, "base64").toString("utf-8");
       }
-
-      console.log("package.json encontrado (public):", true);
-      console.log("README encontrado (public):", !!readmeContent);
-      console.log("Resultado: verificado (public)");
-      console.log("===================");
 
       const lines: string[] = [];
       lines.push(`[REPOSITÓRIO GITHUB VERIFICADO — ${owner}/${repo}]`);
@@ -226,8 +196,6 @@ async function resolveGithub(
     console.log("Strategy C error:", err);
   }
 
-  console.log("Resultado: privado_sem_acesso");
-  console.log("===================");
   return {
     status: "privado_sem_acesso",
     context: `[GITHUB INACESSÍVEL — ${owner}/${repo}]\nGitHub inacessível — itens técnicos não verificados.\nMarque TODOS os itens técnicos como nao_verificado.\nNão invente ou assuma dependências.`,
@@ -242,6 +210,7 @@ export async function POST(request: Request) {
     const createdBy = (formData.get("created_by") as string) || "unknown";
     const githubUrl = (formData.get("githubUrl") as string) || null;
     const packageJsonFile = (formData.get("packageJsonFile") as File | null) || null;
+    const productMode = (formData.get("productMode") as string) || "prd";
 
     if (!file) {
       return NextResponse.json(
@@ -264,11 +233,6 @@ export async function POST(request: Request) {
 
     // Resolve GitHub (strategies A/B/C)
     const github = await resolveGithub(githubUrl, packageJsonFile);
-    console.log("=== GITHUB RESULT ===");
-    console.log("status:", github.status);
-    console.log("context length:", github.context.length);
-    console.log("context preview:", github.context.slice(0, 200));
-    console.log("====================");
 
     // Build prompt with GitHub context
     const { geminiModel } = await import("@/lib/gemini");
@@ -284,10 +248,10 @@ export async function POST(request: Request) {
       prompt += `\n\nINCLUA no report_json o campo "github_status": "${github.status}"`;
     }
 
+    prompt += `\n\nINCLUA no report_json o campo "produto_modo": "${productMode}"`;
+
     const result = await geminiModel.generateContent(prompt);
     const text = result.response.text();
-
-    console.log("Gemini raw response (first 500):", text.slice(0, 500));
 
     // Clean markdown fences and parse JSON
     const cleaned = text
@@ -296,10 +260,33 @@ export async function POST(request: Request) {
       .trim();
     const d = JSON.parse(cleaned);
 
-    // Ensure github_status is set even if Gemini didn't return it
-    if (d.report_json && github.status !== "sem_github") {
-      d.report_json.github_status = d.report_json.github_status || github.status;
-    }
+    // Build complete report_json with ALL generated data
+    const reportJson = {
+      ...(d.report_json || {}),
+      summary: d.report_json?.summary || d.summary || "",
+      scores: d.report_json?.scores || d.scores || {},
+      tam: d.report_json?.tam || d.tam || {},
+      sam: d.report_json?.sam || d.sam || {},
+      som: d.report_json?.som || d.som || {},
+      competitors: d.report_json?.competitors || d.competitors || [],
+      risks: d.report_json?.risks || d.risks || [],
+      next_steps: d.report_json?.next_steps || d.next_steps || "",
+      strengths: d.report_json?.strengths || d.strengths || [],
+      weaknesses: d.report_json?.weaknesses || d.weaknesses || [],
+      github_status: d.report_json?.github_status || github.status,
+      produto_modo: productMode,
+      launch_readiness_score: d.report_json?.launch_readiness_score || d.launch_readiness_score || null,
+      launch_verdict: d.report_json?.launch_verdict || d.launch_verdict || null,
+      launch_checklist: d.report_json?.launch_checklist || d.launch_checklist || null,
+      top3_para_lancar: d.report_json?.top3_para_lancar || d.top3_para_lancar || null,
+      // Embed top-level fields for full reconstruction from history
+      _score: d.score,
+      _verdict: d.verdict,
+      _recommendation: d.recommendation,
+      _mvp_features: d.mvp_features || [],
+      _v2_features: d.v2_features || [],
+      _cut_features: d.cut_features || [],
+    };
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -316,7 +303,7 @@ export async function POST(request: Request) {
       mvp_features: d.mvp_features,
       v2_features: d.v2_features,
       cut_features: d.cut_features,
-      report_json: d.report_json,
+      report_json: reportJson,
     };
 
     // Save to Supabase

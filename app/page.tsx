@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import UploadZone from "@/components/UploadZone";
 import ReportOutput from "@/components/ReportOutput";
 import LoadingSteps from "@/components/LoadingSteps";
+import RepoSelector from "@/components/RepoSelector";
 import { AnalysisResult, AnalysisResponse } from "@/types/analysis";
 import Link from "next/link";
 
@@ -26,6 +27,7 @@ export default function Home() {
 
   // Código fields
   const [githubUrl, setGithubUrl] = useState("");
+  const [selectedRepo, setSelectedRepo] = useState<{ fullName: string; isPrivate: boolean } | null>(null);
   const [packageJsonFile, setPackageJsonFile] = useState<File | null>(null);
   const packageJsonRef = useRef<HTMLInputElement>(null);
 
@@ -78,6 +80,9 @@ export default function Home() {
   if (githubUrl.trim()) {
     extraSteps.push({ icon: "💻", label: "Verificando repositório GitHub..." });
   }
+
+  const hasRepo = !!selectedRepo;
+  const hasPkg = !!packageJsonFile;
 
   return (
     <main className="min-h-screen">
@@ -142,7 +147,6 @@ export default function Home() {
                     key={mode}
                     onClick={() => {
                       setProductMode(mode);
-                      // Reset fields when switching
                       if (mode !== "site") setSiteUrl("");
                       if (mode !== "html") {
                         setHtmlFile(null);
@@ -221,57 +225,70 @@ export default function Home() {
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--vl-bg2)] text-[var(--vl-text3)]">Opcional</span>
               </div>
 
-              {/* Campo URL */}
-              <div>
-                <input
-                  type="url"
-                  placeholder="https://github.com/usuario/projeto"
-                  value={githubUrl}
-                  onChange={(e) => setGithubUrl(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-border)] text-sm text-[var(--vl-text)] placeholder:text-[var(--vl-text3)] focus:outline-none focus:border-[var(--vl-gold)]/50 transition-colors"
-                />
-              </div>
+              <p className="text-[10px] text-[var(--vl-text3)]">
+                Use o repositório <strong className="text-[var(--vl-text2)]">OU</strong> envie o package.json
+              </p>
 
-              {githubUrl.trim() && (
-                <div className="space-y-3 animate-fade-up">
-                  <p className="text-[10px] text-[var(--vl-text3)]">
-                    📦 Opcionalmente, envie o <strong className="text-[var(--vl-text2)]">package.json</strong> para enriquecer a análise técnica
-                  </p>
+              {/* RepoSelector */}
+              <RepoSelector
+                onSelect={(url, fullName, isPrivate) => {
+                  setGithubUrl(url);
+                  setSelectedRepo({ fullName, isPrivate });
+                  // Clear package.json when repo is selected
+                  setPackageJsonFile(null);
+                  if (packageJsonRef.current) packageJsonRef.current.value = "";
+                }}
+                onClear={() => {
+                  setGithubUrl("");
+                  setSelectedRepo(null);
+                }}
+                selected={selectedRepo}
+                disabled={hasPkg}
+              />
 
-                  {/* Upload package.json */}
-                  <div className="space-y-2">
-                    <input
-                      ref={packageJsonRef}
-                      type="file"
-                      accept=".json"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) setPackageJsonFile(f);
-                      }}
-                      className="hidden"
-                    />
-                    {!packageJsonFile ? (
+              {/* OR divider */}
+              {!hasRepo && !hasPkg && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-[var(--vl-border)]" />
+                  <span className="text-[10px] text-[var(--vl-text3)]">ou</span>
+                  <div className="flex-1 h-px bg-[var(--vl-border)]" />
+                </div>
+              )}
+
+              {/* Upload package.json */}
+              {!hasRepo && (
+                <div className="space-y-2">
+                  <input
+                    ref={packageJsonRef}
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setPackageJsonFile(f);
+                    }}
+                    className="hidden"
+                  />
+                  {!packageJsonFile ? (
+                    <button
+                      onClick={() => packageJsonRef.current?.click()}
+                      className="w-full py-3 rounded-lg border border-dashed border-[var(--vl-border)] bg-[var(--vl-bg2)] text-xs text-[var(--vl-text3)] hover:border-[var(--vl-gold)]/40 hover:text-[var(--vl-text2)] transition-colors"
+                    >
+                      📦 Clique para enviar o package.json
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-green)]/30">
+                      <span className="text-xs text-[var(--vl-green)]">✓ {packageJsonFile.name}</span>
                       <button
-                        onClick={() => packageJsonRef.current?.click()}
-                        className="w-full py-3 rounded-lg border border-dashed border-[var(--vl-border)] bg-[var(--vl-bg2)] text-xs text-[var(--vl-text3)] hover:border-[var(--vl-gold)]/40 hover:text-[var(--vl-text2)] transition-colors"
+                        onClick={() => {
+                          setPackageJsonFile(null);
+                          if (packageJsonRef.current) packageJsonRef.current.value = "";
+                        }}
+                        className="text-xs text-[var(--vl-text3)] hover:text-[var(--vl-red)]"
                       >
-                        📦 Clique para enviar o package.json
+                        ✕
                       </button>
-                    ) : (
-                      <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-green)]/30">
-                        <span className="text-xs text-[var(--vl-green)]">✓ {packageJsonFile.name}</span>
-                        <button
-                          onClick={() => {
-                            setPackageJsonFile(null);
-                            if (packageJsonRef.current) packageJsonRef.current.value = "";
-                          }}
-                          className="text-xs text-[var(--vl-text3)] hover:text-[var(--vl-red)]"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

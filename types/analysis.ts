@@ -25,6 +25,11 @@ export interface ScoreBreakdown {
 
 export type GithubStatus = "verificado" | "via_package_json" | "privado_sem_acesso" | "sem_github";
 
+export interface ChecklistItem {
+  item: string;
+  status: string;
+}
+
 export interface ReportJson {
   summary: string;
   scores: ScoreBreakdown;
@@ -37,6 +42,11 @@ export interface ReportJson {
   strengths: string[];
   weaknesses: string[];
   github_status?: GithubStatus;
+  launch_readiness_score?: number;
+  launch_verdict?: string;
+  launch_checklist?: ChecklistItem[];
+  top3_para_lancar?: string[];
+  produto_modo?: string;
 }
 
 export type Verdict = "AVANÇAR" | "PIVOTAR" | "DESCARTAR";
@@ -55,6 +65,7 @@ export interface AnalysisResult {
   v2_features: Feature[];
   cut_features: Feature[];
   report_json: ReportJson;
+  deleted_at?: string | null;
 }
 
 export interface AnalysisResponse {
