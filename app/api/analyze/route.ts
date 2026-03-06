@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { extractText as extractPdfText } from "unpdf";
 import mammoth from "mammoth";
 import { getServiceSupabase } from "@/lib/supabase";
-import { AnalysisResult } from "@/types/analysis";
 
 async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   if (mimeType === "application/pdf") {
@@ -30,6 +29,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const createdBy = (formData.get("created_by") as string) || "unknown";
 
     if (!file) {
       return NextResponse.json(
@@ -58,43 +58,53 @@ export async function POST(request: Request) {
     const result = await geminiModel.generateContent(prompt);
     const text = result.response.text();
 
-    // Debug: ver o que o Gemini retornou
     console.log("Gemini raw response:", text);
 
-    // Limpar markdown fences e extrair JSON
+    // Clean markdown fences and parse JSON
     const cleaned = text
       .replace(/```json/gi, "")
       .replace(/```/g, "")
       .trim();
-    const analysisData = JSON.parse(cleaned);
+    const d = JSON.parse(cleaned);
 
-    const analysis: AnalysisResult = {
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    const analysis = {
+      id,
+      created_at: now,
+      created_by: createdBy,
+      project_name: d.project_name || file.name.replace(/\.[^.]+$/, ""),
       file_name: file.name,
-      overall_score: analysisData.overall_score,
-      scores: analysisData.scores,
-      summary: analysisData.summary,
-      strengths: analysisData.strengths,
-      weaknesses: analysisData.weaknesses,
-      features: analysisData.features,
-      recommendation: analysisData.recommendation,
+      score: d.score,
+      verdict: d.verdict,
+      recommendation: d.recommendation,
+      mvp_features: d.mvp_features,
+      v2_features: d.v2_features,
+      cut_features: d.cut_features,
+      report_json: d.report_json,
     };
 
     // Save to Supabase
     const supabase = getServiceSupabase();
-    await supabase.from("analyses").insert({
+    const { error: dbError } = await supabase.from("analyses").insert({
       id: analysis.id,
       created_at: analysis.created_at,
+      created_by: analysis.created_by,
+      project_name: analysis.project_name,
       file_name: analysis.file_name,
-      overall_score: analysis.overall_score,
-      scores: analysis.scores,
-      summary: analysis.summary,
-      strengths: analysis.strengths,
-      weaknesses: analysis.weaknesses,
-      features: analysis.features,
+      score: analysis.score,
+      verdict: analysis.verdict,
       recommendation: analysis.recommendation,
+      mvp_features: analysis.mvp_features,
+      v2_features: analysis.v2_features,
+      cut_features: analysis.cut_features,
+      report_json: analysis.report_json,
     });
+
+    if (dbError) {
+      console.error("Supabase insert error:", dbError);
+    }
 
     return NextResponse.json({ success: true, data: analysis });
   } catch (error) {
