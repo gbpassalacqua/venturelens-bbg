@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const STEPS = [
+const BASE_STEPS = [
   { icon: "🤖", label: "Lendo o PRD..." },
   { icon: "📊", label: "Pesquisando o mercado..." },
   { icon: "💰", label: "Calculando TAM/SAM/SOM..." },
@@ -12,20 +12,33 @@ const STEPS = [
   { icon: "🎯", label: "Gerando score final..." },
 ];
 
-export default function LoadingSteps() {
+interface LoadingStepsProps {
+  extraSteps?: { icon: string; label: string }[];
+}
+
+export default function LoadingSteps({ extraSteps = [] }: LoadingStepsProps) {
   const [currentStep, setCurrentStep] = useState(0);
 
+  // Insert extra steps after the first base step (after "Lendo o PRD...")
+  const allSteps = [
+    BASE_STEPS[0],
+    ...extraSteps,
+    ...BASE_STEPS.slice(1),
+  ];
+
   useEffect(() => {
+    setCurrentStep(0);
     const interval = setInterval(() => {
-      setCurrentStep((prev) => (prev < STEPS.length - 1 ? prev + 1 : prev));
+      setCurrentStep((prev) => (prev < allSteps.length - 1 ? prev + 1 : prev));
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allSteps.length]);
 
   return (
     <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-6 mt-8">
       <div className="space-y-3">
-        {STEPS.map((step, i) => {
+        {allSteps.map((step, i) => {
           const status = i < currentStep ? "done" : i === currentStep ? "running" : "queued";
           return (
             <div key={i} className="flex items-center gap-3">

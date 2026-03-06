@@ -9,6 +9,8 @@ import Link from "next/link";
 
 const USERS = ["Giuliano", "Bruno", "Bento"];
 
+type ProductMode = "site" | "html" | "prd";
+
 export default function Home() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +18,13 @@ export default function Home() {
   const [selectedUser, setSelectedUser] = useState(USERS[0]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // GitHub fields
+  // Produto fields
+  const [productMode, setProductMode] = useState<ProductMode>("prd");
+  const [siteUrl, setSiteUrl] = useState("");
+  const [htmlFile, setHtmlFile] = useState<File | null>(null);
+  const htmlRef = useRef<HTMLInputElement>(null);
+
+  // Código fields
   const [githubUrl, setGithubUrl] = useState("");
   const [packageJsonFile, setPackageJsonFile] = useState<File | null>(null);
   const packageJsonRef = useRef<HTMLInputElement>(null);
@@ -31,6 +39,14 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("created_by", selectedUser);
+      formData.append("productMode", productMode);
+
+      if (productMode === "site" && siteUrl.trim()) {
+        formData.append("siteUrl", siteUrl.trim());
+      }
+      if (productMode === "html" && htmlFile) {
+        formData.append("htmlFile", htmlFile);
+      }
 
       if (githubUrl.trim()) {
         formData.append("githubUrl", githubUrl.trim());
@@ -49,6 +65,18 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // Build dynamic extra steps for LoadingSteps
+  const extraSteps: { icon: string; label: string }[] = [];
+  if (productMode === "site") {
+    extraSteps.push({ icon: "🌐", label: "Analisando o site do produto..." });
+  }
+  if (productMode === "html") {
+    extraSteps.push({ icon: "📄", label: "Lendo HTML do produto..." });
+  }
+  if (githubUrl.trim()) {
+    extraSteps.push({ icon: "💻", label: "Verificando repositório GitHub..." });
   }
 
   return (
@@ -95,7 +123,97 @@ export default function Home() {
 
             <UploadZone onFileSelected={(f) => setSelectedFile(f)} isLoading={isLoading} />
 
-            {/* GitHub Section */}
+            {/* ── SEÇÃO: Produto (opcional) ── */}
+            <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-base">🛍️</span>
+                <h3 className="font-display font-bold text-sm text-[var(--vl-text)]">Produto</h3>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--vl-bg2)] text-[var(--vl-text3)]">Opcional</span>
+              </div>
+
+              {/* 3 pill buttons */}
+              <div className="flex gap-2">
+                {([
+                  { mode: "site" as ProductMode, icon: "🌐", label: "Tenho site no ar" },
+                  { mode: "html" as ProductMode, icon: "📄", label: "Tenho HTML" },
+                  { mode: "prd" as ProductMode, icon: "📋", label: "Só o PRD" },
+                ]).map(({ mode, icon, label }) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      setProductMode(mode);
+                      // Reset fields when switching
+                      if (mode !== "site") setSiteUrl("");
+                      if (mode !== "html") {
+                        setHtmlFile(null);
+                        if (htmlRef.current) htmlRef.current.value = "";
+                      }
+                    }}
+                    className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all border ${
+                      productMode === mode
+                        ? "bg-[var(--vl-gold)]/10 border-[var(--vl-gold)]/50 text-[var(--vl-gold)]"
+                        : "bg-[var(--vl-bg2)] border-[var(--vl-border)] text-[var(--vl-text3)] hover:text-[var(--vl-text2)] hover:border-[var(--vl-gold)]/30"
+                    }`}
+                  >
+                    {icon} {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Conditional: Site URL */}
+              {productMode === "site" && (
+                <div className="animate-fade-up">
+                  <input
+                    type="url"
+                    placeholder="https://meuproduto.com.br"
+                    value={siteUrl}
+                    onChange={(e) => setSiteUrl(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-border)] text-sm text-[var(--vl-text)] placeholder:text-[var(--vl-text3)] focus:outline-none focus:border-[var(--vl-gold)]/50 transition-colors"
+                  />
+                  <p className="text-[10px] text-[var(--vl-text3)] mt-1.5">URL do site para enriquecer a análise de produto</p>
+                </div>
+              )}
+
+              {/* Conditional: HTML upload */}
+              {productMode === "html" && (
+                <div className="animate-fade-up space-y-2">
+                  <input
+                    ref={htmlRef}
+                    type="file"
+                    accept=".html,.htm"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setHtmlFile(f);
+                    }}
+                    className="hidden"
+                  />
+                  {!htmlFile ? (
+                    <button
+                      onClick={() => htmlRef.current?.click()}
+                      className="w-full py-3 rounded-lg border border-dashed border-[var(--vl-border)] bg-[var(--vl-bg2)] text-xs text-[var(--vl-text3)] hover:border-[var(--vl-gold)]/40 hover:text-[var(--vl-text2)] transition-colors"
+                    >
+                      📄 Clique para enviar o arquivo HTML
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-green)]/30">
+                      <span className="text-xs text-[var(--vl-green)]">✓ {htmlFile.name}</span>
+                      <button
+                        onClick={() => {
+                          setHtmlFile(null);
+                          if (htmlRef.current) htmlRef.current.value = "";
+                        }}
+                        className="text-xs text-[var(--vl-text3)] hover:text-[var(--vl-red)]"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-[var(--vl-text3)]">Arquivo HTML da landing page ou produto</p>
+                </div>
+              )}
+            </div>
+
+            {/* ── SEÇÃO: Código (opcional) ── */}
             <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-base">💻</span>
@@ -103,7 +221,7 @@ export default function Home() {
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--vl-bg2)] text-[var(--vl-text3)]">Opcional</span>
               </div>
 
-              {/* Campo 1 — URL */}
+              {/* Campo URL */}
               <div>
                 <input
                   type="url"
@@ -115,7 +233,7 @@ export default function Home() {
               </div>
 
               {githubUrl.trim() && (
-                <div className="space-y-3">
+                <div className="space-y-3 animate-fade-up">
                   <p className="text-[10px] text-[var(--vl-text3)]">
                     📦 Opcionalmente, envie o <strong className="text-[var(--vl-text2)]">package.json</strong> para enriquecer a análise técnica
                   </p>
@@ -167,7 +285,7 @@ export default function Home() {
               </button>
             )}
 
-            {isLoading && <LoadingSteps />}
+            {isLoading && <LoadingSteps extraSteps={extraSteps} />}
 
             {error && (
               <div className="p-4 rounded-xl border border-[var(--vl-red)]/30 bg-[var(--vl-red)]/5">
