@@ -55,27 +55,27 @@ const barColor = (v: number) =>
 
 /* ─── Score label map ─── */
 const SCORE_LABELS: Record<string, string> = {
-  market:      "Market",
-  team:        "Team",
-  product:     "Product",
-  traction:    "Traction",
-  financials:  "Financials",
+  market:      "Mercado",
+  team:        "Time",
+  product:     "Produto",
+  traction:    "Tração",
+  financials:  "Financeiro",
   gtm:         "Go-to-Market",
-  technology:  "Technology",
-  deckQuality: "Deck Quality",
+  technology:  "Tecnologia",
+  deckQuality: "Qualidade do Deck",
 };
 
 /* ─── Tab definitions ─── */
 type TabKey = "strategy" | "finance" | "marketing" | "tech";
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "strategy", label: "Strategy" },
-  { key: "finance", label: "Finance" },
+  { key: "strategy", label: "Estratégia" },
+  { key: "finance", label: "Financeiro" },
   { key: "marketing", label: "Marketing" },
-  { key: "tech", label: "Tech" },
+  { key: "tech", label: "Tecnologia" },
 ];
 
 /* ─── Reusable Null Card ─── */
-function NullCard({ text = "Data not available in this analysis" }: { text?: string }) {
+function NullCard({ text = "Dados não disponíveis nesta análise" }: { text?: string }) {
   return (
     <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-bg2)] p-5">
       <p className="text-sm text-[var(--vl-text3)] italic">{text}</p>
@@ -175,7 +175,7 @@ function StrategyTab({ r }: { r: V2ReportJson }) {
   return (
     <div className="space-y-6">
       {/* Market Size */}
-      <Section title="Market Size">
+      <Section title="Tamanho de Mercado">
         {s.marketSize ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -191,20 +191,20 @@ function StrategyTab({ r }: { r: V2ReportJson }) {
               ))}
             </div>
             <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-4 space-y-1">
-              <DetailRow label="Credibility Assessment" value={s.marketSize.credibilityAssessment} />
-              <DetailRow label="Market Timing" value={s.marketSize.marketTiming} />
+              <DetailRow label="Avaliação de Credibilidade" value={s.marketSize.credibilityAssessment} />
+              <DetailRow label="Timing de Mercado" value={s.marketSize.marketTiming} />
             </div>
           </>
         ) : <NullCard />}
       </Section>
 
       {/* Competitive Landscape */}
-      <Section title="Competitive Landscape">
+      <Section title="Panorama Competitivo">
         {s.competitiveLandscape ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
             {s.competitiveLandscape.directCompetitors?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Direct Competitors</p>
+                <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Concorrentes Diretos</p>
                 <div className="flex flex-wrap gap-2">
                   {s.competitiveLandscape.directCompetitors.map((c, i) => (
                     <Tag key={i} className="bg-[var(--vl-red)]/10 text-[var(--vl-red)] border-[var(--vl-red)]/30">{c}</Tag>
@@ -214,7 +214,7 @@ function StrategyTab({ r }: { r: V2ReportJson }) {
             )}
             {s.competitiveLandscape.indirectCompetitors?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Indirect Competitors</p>
+                <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Concorrentes Indiretos</p>
                 <div className="flex flex-wrap gap-2">
                   {s.competitiveLandscape.indirectCompetitors.map((c, i) => (
                     <Tag key={i} className="bg-blue-500/10 text-blue-400 border-blue-500/30">{c}</Tag>
@@ -222,9 +222,9 @@ function StrategyTab({ r }: { r: V2ReportJson }) {
                 </div>
               </div>
             )}
-            <DetailRow label="Moat Assessment" value={s.competitiveLandscape.moatAssessment} />
+            <DetailRow label="Avaliação do Moat" value={s.competitiveLandscape.moatAssessment} />
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[var(--vl-text2)]">Moat Strength</span>
+              <span className="text-sm font-medium text-[var(--vl-text2)]">Força do Moat</span>
               <Tag className="bg-[var(--vl-gold)]/15 text-[var(--vl-gold)] border-[var(--vl-gold)]/40">
                 {s.competitiveLandscape.moatStrength || "—"}
               </Tag>
@@ -234,25 +234,25 @@ function StrategyTab({ r }: { r: V2ReportJson }) {
       </Section>
 
       {/* Business Model */}
-      <Section title="Business Model">
+      <Section title="Modelo de Negócio">
         {s.businessModel ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-            <DetailRow label="Revenue Model" value={s.businessModel.revenueModel} />
-            <DetailRow label="Scalability" value={s.businessModel.scalability} />
-            <DetailRow label="Pricing Power" value={s.businessModel.pricingPower} />
-            <DetailRow label="Unit Economics Viability" value={s.businessModel.unitEconomicsViability} />
+            <DetailRow label="Modelo de Receita" value={s.businessModel.revenueModel} />
+            <DetailRow label="Escalabilidade" value={s.businessModel.scalability} />
+            <DetailRow label="Poder de Precificação" value={s.businessModel.pricingPower} />
+            <DetailRow label="Viabilidade da Unit Economics" value={s.businessModel.unitEconomicsViability} />
           </div>
         ) : <NullCard />}
       </Section>
 
       {/* Team Assessment */}
-      <Section title="Team Assessment">
+      <Section title="Avaliação do Time">
         {s.teamAssessment ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
             <DetailRow label="Founder-Market Fit" value={s.teamAssessment.founderMarketFit} />
             {s.teamAssessment.keyStrengths?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-green)] mb-2">Key Strengths</p>
+                <p className="text-xs font-medium text-[var(--vl-green)] mb-2">Pontos Fortes</p>
                 <ul className="space-y-1">
                   {s.teamAssessment.keyStrengths.map((item, i) => (
                     <li key={i} className="text-sm text-[var(--vl-text)] flex gap-2">
@@ -264,7 +264,7 @@ function StrategyTab({ r }: { r: V2ReportJson }) {
             )}
             {s.teamAssessment.keyGaps?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-red)] mb-2">Key Gaps</p>
+                <p className="text-xs font-medium text-[var(--vl-red)] mb-2">Lacunas</p>
                 <ul className="space-y-1">
                   {s.teamAssessment.keyGaps.map((item, i) => (
                     <li key={i} className="text-sm text-[var(--vl-text)] flex gap-2">
@@ -276,7 +276,7 @@ function StrategyTab({ r }: { r: V2ReportJson }) {
             )}
             {s.teamAssessment.hiringPriorities?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-amber)] mb-2">Hiring Priorities</p>
+                <p className="text-xs font-medium text-[var(--vl-amber)] mb-2">Prioridades de Contratação</p>
                 <div className="flex flex-wrap gap-2">
                   {s.teamAssessment.hiringPriorities.map((item, i) => (
                     <Tag key={i} className="bg-[var(--vl-amber)]/10 text-[var(--vl-amber)] border-[var(--vl-amber)]/30">{item}</Tag>
@@ -296,13 +296,13 @@ function FinanceTab({ r }: { r: V2ReportJson }) {
   if (!f) return <NullCard />;
 
   const metricEntries: { label: string; value: string | undefined }[] = f.currentMetrics ? [
-    { label: "Revenue", value: f.currentMetrics.revenue },
+    { label: "Receita", value: f.currentMetrics.revenue },
     { label: "Burn Rate", value: f.currentMetrics.burnRate },
     { label: "Runway", value: f.currentMetrics.runway },
-    { label: "Gross Margin", value: f.currentMetrics.grossMargin },
+    { label: "Margem Bruta", value: f.currentMetrics.grossMargin },
     { label: "CAC", value: f.currentMetrics.cac },
     { label: "LTV", value: f.currentMetrics.ltv },
-    { label: "LTV/CAC Ratio", value: f.currentMetrics.ltvCacRatio },
+    { label: "Razão LTV/CAC", value: f.currentMetrics.ltvCacRatio },
     { label: "Churn", value: f.currentMetrics.churn },
     { label: "NRR", value: f.currentMetrics.nrr },
   ] : [];
@@ -310,7 +310,7 @@ function FinanceTab({ r }: { r: V2ReportJson }) {
   return (
     <div className="space-y-6">
       {/* Current Metrics */}
-      <Section title="Current Metrics">
+      <Section title="Métricas Atuais">
         {f.currentMetrics ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {metricEntries.map(({ label, value }, i) => (
@@ -324,13 +324,13 @@ function FinanceTab({ r }: { r: V2ReportJson }) {
       </Section>
 
       {/* Projections Audit */}
-      <Section title="Projections Audit">
+      <Section title="Auditoria de Projeções">
         {f.projectionsAudit ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
-            <DetailRow label="Revenue Projections" value={f.projectionsAudit.revenueProjections} />
+            <DetailRow label="Projeções de Receita" value={f.projectionsAudit.revenueProjections} />
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-[var(--vl-text2)]">Credibility Score</span>
+                <span className="text-sm font-medium text-[var(--vl-text2)]">Score de Credibilidade</span>
                 <span className="text-sm font-mono text-[var(--vl-text)]">{f.projectionsAudit.credibilityScore || "—"}</span>
               </div>
               {f.projectionsAudit.credibilityScore && (
@@ -344,7 +344,7 @@ function FinanceTab({ r }: { r: V2ReportJson }) {
             </div>
             {f.projectionsAudit.keyAssumptions?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Key Assumptions</p>
+                <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Premissas-Chave</p>
                 <ul className="space-y-1">
                   {f.projectionsAudit.keyAssumptions.map((a, i) => (
                     <li key={i} className="text-sm text-[var(--vl-text)] flex gap-2">
@@ -356,7 +356,7 @@ function FinanceTab({ r }: { r: V2ReportJson }) {
             )}
             {f.projectionsAudit.redFlags?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-red)] mb-2">Red Flags</p>
+                <p className="text-xs font-medium text-[var(--vl-red)] mb-2">Sinais de Alerta</p>
                 <ul className="space-y-1">
                   {f.projectionsAudit.redFlags.map((flag, i) => (
                     <li key={i} className="text-sm text-[var(--vl-red)] flex gap-2">
@@ -371,14 +371,14 @@ function FinanceTab({ r }: { r: V2ReportJson }) {
       </Section>
 
       {/* Fundraising Analysis */}
-      <Section title="Fundraising Analysis">
+      <Section title="Análise de Captação">
         {f.fundraisingAnalysis ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-            <DetailRow label="Amount Raising" value={f.fundraisingAnalysis.amountRaising} />
-            <DetailRow label="Use of Funds" value={f.fundraisingAnalysis.useOfFunds} />
-            <DetailRow label="Implied Valuation" value={f.fundraisingAnalysis.impliedValuation} />
-            <DetailRow label="Runway from Raise" value={f.fundraisingAnalysis.runwayFromRaise} />
-            <DetailRow label="Next Milestone" value={f.fundraisingAnalysis.nextMilestone} />
+            <DetailRow label="Valor da Captação" value={f.fundraisingAnalysis.amountRaising} />
+            <DetailRow label="Uso dos Recursos" value={f.fundraisingAnalysis.useOfFunds} />
+            <DetailRow label="Valuation Implícito" value={f.fundraisingAnalysis.impliedValuation} />
+            <DetailRow label="Runway Pós-Captação" value={f.fundraisingAnalysis.runwayFromRaise} />
+            <DetailRow label="Próximo Marco" value={f.fundraisingAnalysis.nextMilestone} />
           </div>
         ) : <NullCard />}
       </Section>
@@ -386,7 +386,7 @@ function FinanceTab({ r }: { r: V2ReportJson }) {
       {/* Financial Verdict */}
       {f.financialVerdict && (
         <div className="rounded-xl border border-[var(--vl-gold)]/30 bg-[var(--vl-gold)]/5 p-5">
-          <h4 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">Financial Verdict</h4>
+          <h4 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">Veredito Financeiro</h4>
           <p className="text-sm text-[var(--vl-text)] leading-relaxed">{f.financialVerdict}</p>
         </div>
       )}
@@ -401,12 +401,12 @@ function MarketingTab({ r }: { r: V2ReportJson }) {
   return (
     <div className="space-y-6">
       {/* GTM Strategy */}
-      <Section title="GTM Strategy">
+      <Section title="Estratégia GTM">
         {m.gtmStrategy ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
             {m.gtmStrategy.primaryChannels?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Primary Channels</p>
+                <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Canais Primários</p>
                 <div className="flex flex-wrap gap-2">
                   {m.gtmStrategy.primaryChannels.map((ch, i) => (
                     <Tag key={i} className="bg-[var(--vl-gold)]/10 text-[var(--vl-gold)] border-[var(--vl-gold)]/30">{ch}</Tag>
@@ -415,63 +415,63 @@ function MarketingTab({ r }: { r: V2ReportJson }) {
               </div>
             )}
             <DetailRow label="Channel-Market Fit" value={m.gtmStrategy.channelMarketFit} />
-            <DetailRow label="Distribution Model" value={m.gtmStrategy.distributionModel} />
-            <DetailRow label="Sales Cycle Complexity" value={m.gtmStrategy.salesCycleComplexity} />
+            <DetailRow label="Modelo de Distribuição" value={m.gtmStrategy.distributionModel} />
+            <DetailRow label="Complexidade do Ciclo de Vendas" value={m.gtmStrategy.salesCycleComplexity} />
           </div>
         ) : <NullCard />}
       </Section>
 
       {/* Traction Validation */}
-      <Section title="Traction Validation">
+      <Section title="Validação de Tração">
         {m.tractionValidation ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-            <DetailRow label="Current Traction" value={m.tractionValidation.currentTraction} />
-            <DetailRow label="Growth Trajectory" value={m.tractionValidation.growthTrajectory} />
-            <DetailRow label="Traction Quality" value={m.tractionValidation.tractionQuality} />
-            <DetailRow label="Social Proof" value={m.tractionValidation.socialProof} />
+            <DetailRow label="Tração Atual" value={m.tractionValidation.currentTraction} />
+            <DetailRow label="Trajetória de Crescimento" value={m.tractionValidation.growthTrajectory} />
+            <DetailRow label="Qualidade da Tração" value={m.tractionValidation.tractionQuality} />
+            <DetailRow label="Prova Social" value={m.tractionValidation.socialProof} />
           </div>
         ) : <NullCard />}
       </Section>
 
       {/* Brand Positioning */}
-      <Section title="Brand Positioning">
+      <Section title="Posicionamento de Marca">
         {m.brandPositioning ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-3">
-            <DetailRow label="Value Proposition" value={m.brandPositioning.valueProposition} />
-            <DetailRow label="Messaging Quality" value={m.brandPositioning.messagingQuality} />
+            <DetailRow label="Proposta de Valor" value={m.brandPositioning.valueProposition} />
+            <DetailRow label="Qualidade da Mensagem" value={m.brandPositioning.messagingQuality} />
             <div className="flex items-center gap-2 py-2 border-b border-[var(--vl-border)]">
-              <span className="text-sm font-medium text-[var(--vl-text2)] sm:w-48 shrink-0">Differentiation Strength</span>
+              <span className="text-sm font-medium text-[var(--vl-text2)] sm:w-48 shrink-0">Força da Diferenciação</span>
               <Tag className="bg-[var(--vl-gold)]/15 text-[var(--vl-gold)] border-[var(--vl-gold)]/40">
                 {m.brandPositioning.differentiationStrength || "—"}
               </Tag>
             </div>
-            <DetailRow label="Emotional Resonance" value={m.brandPositioning.emotionalResonance} />
+            <DetailRow label="Ressonância Emocional" value={m.brandPositioning.emotionalResonance} />
           </div>
         ) : <NullCard />}
       </Section>
 
       {/* Scalability Assessment */}
-      <Section title="Scalability Assessment">
+      <Section title="Avaliação de Escalabilidade">
         {m.scalabilityAssessment ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-            <DetailRow label="Channel Scalability" value={m.scalabilityAssessment.channelScalability} />
-            <DetailRow label="Viral Potential" value={m.scalabilityAssessment.viralPotential} />
-            <DetailRow label="Content/SEO Moat" value={m.scalabilityAssessment.contentSEOMoat} />
+            <DetailRow label="Escalabilidade dos Canais" value={m.scalabilityAssessment.channelScalability} />
+            <DetailRow label="Potencial Viral" value={m.scalabilityAssessment.viralPotential} />
+            <DetailRow label="Moat de Conteúdo/SEO" value={m.scalabilityAssessment.contentSEOMoat} />
           </div>
         ) : <NullCard />}
       </Section>
 
       {/* Deck Storytelling */}
-      <Section title="Deck Storytelling">
+      <Section title="Storytelling do Deck">
         {m.deckStorytelling ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-3">
-            <DetailRow label="Narrative Arc" value={m.deckStorytelling.narrativeArc} />
-            <DetailRow label="Slide Flow" value={m.deckStorytelling.slideFlow} />
-            <DetailRow label="Visual Quality" value={m.deckStorytelling.visualQuality} />
-            <DetailRow label="Information Density" value={m.deckStorytelling.informationDensity} />
+            <DetailRow label="Arco Narrativo" value={m.deckStorytelling.narrativeArc} />
+            <DetailRow label="Fluxo dos Slides" value={m.deckStorytelling.slideFlow} />
+            <DetailRow label="Qualidade Visual" value={m.deckStorytelling.visualQuality} />
+            <DetailRow label="Densidade de Informação" value={m.deckStorytelling.informationDensity} />
             {m.deckStorytelling.missingSlides?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-red)] mb-2">Missing Slides</p>
+                <p className="text-xs font-medium text-[var(--vl-red)] mb-2">Slides Ausentes</p>
                 <div className="flex flex-wrap gap-2">
                   {m.deckStorytelling.missingSlides.map((slide, i) => (
                     <Tag key={i} className="bg-[var(--vl-red)]/10 text-[var(--vl-red)] border-[var(--vl-red)]/30">{slide}</Tag>
@@ -486,7 +486,7 @@ function MarketingTab({ r }: { r: V2ReportJson }) {
       {/* Marketing Verdict */}
       {m.marketingVerdict && (
         <div className="rounded-xl border border-[var(--vl-gold)]/30 bg-[var(--vl-gold)]/5 p-5">
-          <h4 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">Marketing Verdict</h4>
+          <h4 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">Veredito de Marketing</h4>
           <p className="text-sm text-[var(--vl-text)] leading-relaxed">{m.marketingVerdict}</p>
         </div>
       )}
@@ -501,31 +501,31 @@ function TechTab({ r }: { r: V2ReportJson }) {
   return (
     <div className="space-y-6">
       {/* Technology Assessment */}
-      <Section title="Technology Assessment">
+      <Section title="Avaliação Tecnológica">
         {t.technologyAssessment ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-            <DetailRow label="Tech Stack" value={t.technologyAssessment.techStack} />
-            <DetailRow label="Architecture Scalability" value={t.technologyAssessment.architectureScalability} />
-            <DetailRow label="AI/ML Claims" value={t.technologyAssessment.aiMlClaims} />
-            <DetailRow label="Data Strategy" value={t.technologyAssessment.dataStrategy} />
+            <DetailRow label="Stack Tecnológica" value={t.technologyAssessment.techStack} />
+            <DetailRow label="Escalabilidade da Arquitetura" value={t.technologyAssessment.architectureScalability} />
+            <DetailRow label="Claims de IA/ML" value={t.technologyAssessment.aiMlClaims} />
+            <DetailRow label="Estratégia de Dados" value={t.technologyAssessment.dataStrategy} />
           </div>
         ) : <NullCard />}
       </Section>
 
       {/* Product Analysis */}
-      <Section title="Product Analysis">
+      <Section title="Análise de Produto">
         {t.productAnalysis ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-            <DetailRow label="PMF Signals" value={t.productAnalysis.pmfSignals} />
-            <DetailRow label="Feature Differentiation" value={t.productAnalysis.featureDifferentiation} />
-            <DetailRow label="Product Complexity" value={t.productAnalysis.productComplexity} />
-            <DetailRow label="UX Quality" value={t.productAnalysis.uxQuality} />
+            <DetailRow label="Sinais de PMF" value={t.productAnalysis.pmfSignals} />
+            <DetailRow label="Diferenciação de Features" value={t.productAnalysis.featureDifferentiation} />
+            <DetailRow label="Complexidade do Produto" value={t.productAnalysis.productComplexity} />
+            <DetailRow label="Qualidade de UX" value={t.productAnalysis.uxQuality} />
           </div>
         ) : <NullCard />}
       </Section>
 
       {/* Technical Risks */}
-      <Section title="Technical Risks">
+      <Section title="Riscos Técnicos">
         {t.technicalRisks?.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {t.technicalRisks.map((risk, i) => {
@@ -546,26 +546,26 @@ function TechTab({ r }: { r: V2ReportJson }) {
       </Section>
 
       {/* IP & Defensibility */}
-      <Section title="IP & Defensibility">
+      <Section title="PI & Defensibilidade">
         {t.ipDefensibility ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
-            <DetailRow label="Patents" value={t.ipDefensibility.patents} />
-            <DetailRow label="Proprietary Tech" value={t.ipDefensibility.proprietaryTech} />
-            <DetailRow label="Moat Durability" value={t.ipDefensibility.moatDurability} />
-            <DetailRow label="Open Source Risk" value={t.ipDefensibility.openSourceRisk} />
+            <DetailRow label="Patentes" value={t.ipDefensibility.patents} />
+            <DetailRow label="Tecnologia Proprietária" value={t.ipDefensibility.proprietaryTech} />
+            <DetailRow label="Durabilidade do Moat" value={t.ipDefensibility.moatDurability} />
+            <DetailRow label="Risco Open Source" value={t.ipDefensibility.openSourceRisk} />
           </div>
         ) : <NullCard />}
       </Section>
 
       {/* Security & Compliance */}
-      <Section title="Security & Compliance">
+      <Section title="Segurança & Compliance">
         {t.securityCompliance ? (
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-3">
-            <DetailRow label="Data Privacy" value={t.securityCompliance.dataPrivacy} />
-            <DetailRow label="Security Mentions" value={t.securityCompliance.securityMentions} />
+            <DetailRow label="Privacidade de Dados" value={t.securityCompliance.dataPrivacy} />
+            <DetailRow label="Menções de Segurança" value={t.securityCompliance.securityMentions} />
             {t.securityCompliance.complianceGaps?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[var(--vl-red)] mb-2">Compliance Gaps</p>
+                <p className="text-xs font-medium text-[var(--vl-red)] mb-2">Gaps de Compliance</p>
                 <ul className="space-y-1">
                   {t.securityCompliance.complianceGaps.map((gap, i) => (
                     <li key={i} className="text-sm text-[var(--vl-red)] flex gap-2">
@@ -582,7 +582,7 @@ function TechTab({ r }: { r: V2ReportJson }) {
       {/* Tech Verdict */}
       {t.techVerdict && (
         <div className="rounded-xl border border-[var(--vl-gold)]/30 bg-[var(--vl-gold)]/5 p-5">
-          <h4 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">Tech Verdict</h4>
+          <h4 className="font-display font-bold text-sm text-[var(--vl-gold)] mb-2">Veredito Tecnológico</h4>
           <p className="text-sm text-[var(--vl-text)] leading-relaxed">{t.techVerdict}</p>
         </div>
       )}
@@ -646,7 +646,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
           ═══════════════════════════════════════════════════════ */}
       {r.executiveSummary ? (
         <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
-          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Executive Summary</h3>
+          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Resumo Executivo</h3>
 
           {/* One-liner */}
           {r.executiveSummary.oneLiner && (
@@ -656,7 +656,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
           {/* Thesis */}
           {r.executiveSummary.thesis && (
             <div className="rounded-lg border-l-4 border-[var(--vl-green)] bg-[var(--vl-green)]/5 p-4">
-              <p className="text-xs font-bold text-[var(--vl-green)] mb-1">THESIS</p>
+              <p className="text-xs font-bold text-[var(--vl-green)] mb-1">TESE</p>
               <p className="text-sm text-[var(--vl-text)] leading-relaxed">{r.executiveSummary.thesis}</p>
             </div>
           )}
@@ -664,7 +664,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
           {/* Anti-thesis */}
           {r.executiveSummary.antiThesis && (
             <div className="rounded-lg border-l-4 border-[var(--vl-red)] bg-[var(--vl-red)]/5 p-4">
-              <p className="text-xs font-bold text-[var(--vl-red)] mb-1">ANTI-THESIS</p>
+              <p className="text-xs font-bold text-[var(--vl-red)] mb-1">ANTÍTESE</p>
               <p className="text-sm text-[var(--vl-text)] leading-relaxed">{r.executiveSummary.antiThesis}</p>
             </div>
           )}
@@ -750,7 +750,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
           ═══════════════════════════════════════════════════════ */}
       {r.slideBySlide?.length > 0 ? (
         <div className="space-y-4">
-          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Slide-by-Slide Analysis</h3>
+          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Análise Slide por Slide</h3>
           <div className="space-y-2">
             {r.slideBySlide.map((slide) => {
               const isOpen = expandedSlides.has(slide.slideNumber);
@@ -764,7 +764,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                     className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-[var(--vl-bg2)] transition-colors"
                   >
                     <span className="font-mono text-xs text-[var(--vl-text3)] w-8 shrink-0">#{slide.slideNumber}</span>
-                    <span className="text-sm font-medium text-[var(--vl-text)] flex-1">{slide.slideTitle || "Untitled"}</span>
+                    <span className="text-sm font-medium text-[var(--vl-text)] flex-1">{slide.slideTitle || "Sem título"}</span>
                     {slide.category && (
                       <Tag className="bg-[var(--vl-bg2)] text-[var(--vl-text3)] border-[var(--vl-border)]">
                         {slide.category}
@@ -784,7 +784,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                     <div className="px-5 pb-4 space-y-3 border-t border-[var(--vl-border)]">
                       {slide.strengths?.length > 0 && (
                         <div className="mt-3">
-                          <p className="text-xs font-medium text-[var(--vl-green)] mb-1.5">Strengths</p>
+                          <p className="text-xs font-medium text-[var(--vl-green)] mb-1.5">Pontos Fortes</p>
                           <ul className="space-y-1">
                             {slide.strengths.map((s, i) => (
                               <li key={i} className="text-sm text-[var(--vl-text)] flex gap-2">
@@ -796,7 +796,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                       )}
                       {slide.weaknesses?.length > 0 && (
                         <div>
-                          <p className="text-xs font-medium text-[var(--vl-red)] mb-1.5">Weaknesses</p>
+                          <p className="text-xs font-medium text-[var(--vl-red)] mb-1.5">Pontos Fracos</p>
                           <ul className="space-y-1">
                             {slide.weaknesses.map((w, i) => (
                               <li key={i} className="text-sm text-[var(--vl-text)] flex gap-2">
@@ -808,7 +808,7 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                       )}
                       {slide.suggestion && (
                         <div className="rounded-lg bg-[var(--vl-bg2)] p-3">
-                          <p className="text-xs font-medium text-[var(--vl-text3)] mb-1">Suggestion</p>
+                          <p className="text-xs font-medium text-[var(--vl-text3)] mb-1">Sugestão</p>
                           <p className="text-sm text-[var(--vl-text)]">{slide.suggestion}</p>
                         </div>
                       )}
@@ -819,23 +819,23 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
             })}
           </div>
         </div>
-      ) : <NullCard text="Slide-by-slide analysis not available" />}
+      ) : <NullCard text="Análise slide por slide não disponível" />}
 
       {/* ═══════════════════════════════════════════════════════
           6. RISK MATRIX
           ═══════════════════════════════════════════════════════ */}
       {r.strategyAnalysis?.riskMatrix?.length > 0 ? (
         <div className="space-y-4">
-          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Risk Matrix</h3>
+          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Matriz de Riscos</h3>
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--vl-border)] text-[var(--vl-text3)]">
-                    <th className="text-left px-5 py-3 font-medium">Risk</th>
-                    <th className="text-left px-5 py-3 font-medium">Probability</th>
-                    <th className="text-left px-5 py-3 font-medium">Impact</th>
-                    <th className="text-left px-5 py-3 font-medium">Mitigation</th>
+                    <th className="text-left px-5 py-3 font-medium">Risco</th>
+                    <th className="text-left px-5 py-3 font-medium">Probabilidade</th>
+                    <th className="text-left px-5 py-3 font-medium">Impacto</th>
+                    <th className="text-left px-5 py-3 font-medium">Mitigação</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -862,14 +862,14 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
             </div>
           </div>
         </div>
-      ) : <NullCard text="Risk matrix not available" />}
+      ) : <NullCard text="Matriz de riscos não disponível" />}
 
       {/* ═══════════════════════════════════════════════════════
           7. INVESTOR QUESTIONS
           ═══════════════════════════════════════════════════════ */}
       {r.investorQuestions?.length > 0 ? (
         <div className="space-y-4">
-          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Investor Questions</h3>
+          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Perguntas do Investidor</h3>
           <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5">
             <ol className="space-y-3">
               {r.investorQuestions.map((q, i) => (
@@ -881,18 +881,18 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
             </ol>
           </div>
         </div>
-      ) : <NullCard text="Investor questions not available" />}
+      ) : <NullCard text="Perguntas do investidor não disponíveis" />}
 
       {/* ═══════════════════════════════════════════════════════
           8. RECOMMENDATIONS
           ═══════════════════════════════════════════════════════ */}
       {r.recommendations ? (
         <div className="space-y-4">
-          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Recommendations</h3>
+          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Recomendações</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Immediate */}
             <div className="rounded-xl border-2 border-[var(--vl-red)]/40 bg-[var(--vl-card)] p-5 space-y-3">
-              <h4 className="font-display font-bold text-sm text-[var(--vl-red)]">Agora</h4>
+              <h4 className="font-display font-bold text-sm text-[var(--vl-red)]">Imediato</h4>
               {r.recommendations.immediate?.length > 0 ? (
                 <ul className="space-y-2">
                   {r.recommendations.immediate.map((item, i) => (
@@ -901,12 +901,12 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-xs text-[var(--vl-text3)] italic">None</p>}
+              ) : <p className="text-xs text-[var(--vl-text3)] italic">Nenhuma</p>}
             </div>
 
             {/* Short-Term */}
             <div className="rounded-xl border-2 border-[var(--vl-amber)]/40 bg-[var(--vl-card)] p-5 space-y-3">
-              <h4 className="font-display font-bold text-sm text-[var(--vl-amber)]">2-4 Semanas</h4>
+              <h4 className="font-display font-bold text-sm text-[var(--vl-amber)]">Curto Prazo</h4>
               {r.recommendations.shortTerm?.length > 0 ? (
                 <ul className="space-y-2">
                   {r.recommendations.shortTerm.map((item, i) => (
@@ -915,12 +915,12 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-xs text-[var(--vl-text3)] italic">None</p>}
+              ) : <p className="text-xs text-[var(--vl-text3)] italic">Nenhuma</p>}
             </div>
 
             {/* Strategic */}
             <div className="rounded-xl border-2 border-blue-500/40 bg-[var(--vl-card)] p-5 space-y-3">
-              <h4 className="font-display font-bold text-sm text-blue-400">Estrategico</h4>
+              <h4 className="font-display font-bold text-sm text-blue-400">Estratégico</h4>
               {r.recommendations.strategic?.length > 0 ? (
                 <ul className="space-y-2">
                   {r.recommendations.strategic.map((item, i) => (
@@ -929,18 +929,18 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-xs text-[var(--vl-text3)] italic">None</p>}
+              ) : <p className="text-xs text-[var(--vl-text3)] italic">Nenhuma</p>}
             </div>
           </div>
         </div>
-      ) : <NullCard text="Recommendations not available" />}
+      ) : <NullCard text="Recomendações não disponíveis" />}
 
       {/* ═══════════════════════════════════════════════════════
           9. COMPARABLES
           ═══════════════════════════════════════════════════════ */}
       {r.comparables ? (
         <div className="space-y-4">
-          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Comparables</h3>
+          <h3 className="font-display font-bold text-lg text-[var(--vl-text)]">Comparáveis</h3>
           {r.comparables.similarCompanies?.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {r.comparables.similarCompanies.map((comp, i) => {
@@ -952,23 +952,23 @@ export default function ReportOutput({ result }: { result: AnalysisResult }) {
                       <span className="font-display font-bold text-sm text-[var(--vl-text)]">{comp.name}</span>
                       <Tag className={outcomeClass}>{comp.outcome}</Tag>
                     </div>
-                    <p className="text-xs text-[var(--vl-text3)]">Similarity: {comp.similarity}</p>
+                    <p className="text-xs text-[var(--vl-text3)]">Similaridade: {comp.similarity}</p>
                     <p className="text-sm text-[var(--vl-text2)] leading-relaxed">{comp.lesson}</p>
                   </div>
                 );
               })}
             </div>
-          ) : <NullCard text="No comparable companies available" />}
+          ) : <NullCard text="Nenhuma empresa comparável disponível" />}
 
           {/* Benchmark metrics */}
           {r.comparables.benchmarkMetrics && (
             <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-bg2)] p-5">
-              <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Benchmark Metrics</p>
+              <p className="text-xs font-medium text-[var(--vl-text3)] mb-2">Métricas de Benchmark</p>
               <p className="text-sm text-[var(--vl-text)] leading-relaxed">{r.comparables.benchmarkMetrics}</p>
             </div>
           )}
         </div>
-      ) : <NullCard text="Comparables not available" />}
+      ) : <NullCard text="Comparáveis não disponíveis" />}
     </div>
   );
 }

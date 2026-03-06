@@ -9,8 +9,8 @@ const BASE_STEPS = [
   { icon: "📈", label: "Agent 3 — Growth Strategist avaliando GTM e tração..." },
   { icon: "⚙️", label: "Agent 4 — CTO avaliando tecnologia e produto..." },
   { icon: "📊", label: "Analisando slide por slide..." },
-  { icon: "⚠️", label: "Calculando risk matrix..." },
-  { icon: "🎯", label: "Gerando scores e verdict final..." },
+  { icon: "⚠️", label: "Calculando matriz de riscos..." },
+  { icon: "🎯", label: "Gerando scores e veredito final..." },
 ];
 
 interface LoadingStepsProps {
