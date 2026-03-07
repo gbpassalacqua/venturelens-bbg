@@ -156,21 +156,23 @@ export default function Home() {
       const formData = new FormData();
       if (selectedFile) {
         formData.append("file", selectedFile);
+        console.log(`[extract] Sending file: ${selectedFile.name}, ${selectedFile.type}, ${Math.round(selectedFile.size / 1024)}KB`);
       } else if (ideaText.trim()) {
         formData.append("text", ideaText.trim());
+        console.log(`[extract] Sending text: ${ideaText.trim().substring(0, 80)}...`);
       }
 
-      console.log("=== FRONTEND: Calling /api/extract ===");
+      console.log("[extract] Calling /api/extract...");
       const res = await fetch("/api/extract", {
         method: "POST",
         body: formData,
       });
 
-      console.log("=== FRONTEND: Extract response status ===", res.status);
+      console.log("[extract] Response status:", res.status);
 
       if (res.ok) {
         const data = await res.json();
-        console.log("=== FRONTEND: Extract data ===", JSON.stringify(data).substring(0, 300));
+        console.log("[extract] Response data:", JSON.stringify(data).substring(0, 300));
         if (data.fields) {
           const NOT_IDENTIFIED = "Não identificado no documento";
           setConfirmFields((prev) => ({
@@ -186,11 +188,11 @@ export default function Home() {
       } else {
         // Extraction failed — leave fields as-is, user can fill manually
         const errBody = await res.text();
-        console.warn("=== FRONTEND: Extract API error ===", res.status, errBody);
+        console.warn("[extract] API error:", res.status, errBody);
       }
     } catch (err) {
-      // Network error — don't block the flow
-      console.warn("=== FRONTEND: Extract fetch error ===", err);
+      // Network error or timeout — don't block the flow
+      console.warn("[extract] Fetch error:", err);
     } finally {
       setIsExtracting(false);
     }
