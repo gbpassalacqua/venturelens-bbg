@@ -315,6 +315,31 @@ export default function Home() {
     setScreen("input");
   }
 
+  async function handleDeleteAnalysis() {
+    if (!result) return;
+    const confirmed = window.confirm(
+      `Tem certeza que deseja apagar a análise de "${result.report_json?.meta?.companyName || result.project_name}"? Esta ação não pode ser desfeita.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/analyses/${result.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deleted_by: selectedUser }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        handleNewAnalysis();
+      } else {
+        alert("Erro ao apagar análise. Tente novamente.");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Erro ao apagar análise. Tente novamente.");
+    }
+  }
+
   function handleExportPDF() {
     setShowPdfDownload(true);
   }
@@ -413,6 +438,7 @@ export default function Home() {
             report={result.report_json}
             onTabChange={handleTabChange}
             onExportPDF={handleExportPDF}
+            onDelete={handleDeleteAnalysis}
           />
         )}
 

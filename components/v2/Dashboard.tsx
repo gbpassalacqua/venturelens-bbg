@@ -10,6 +10,7 @@ interface DashboardProps {
   report: V2ReportJson;
   onTabChange: (tab: string) => void;
   onExportPDF: () => void;
+  onDelete?: () => void;
 }
 
 /* ── Score label map (PT-BR) ─────────────────────────────────────── */
@@ -124,6 +125,7 @@ export default function Dashboard({
   report,
   onTabChange,
   onExportPDF,
+  onDelete,
 }: DashboardProps) {
   const { scores, executiveSummary, strategyAnalysis, meta } = report;
   const verdictCfg = getVerdictConfig(executiveSummary.verdict);
@@ -180,6 +182,15 @@ export default function Dashboard({
           >
             {"\u2B07 Exportar PDF"}
           </button>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="px-[18px] py-[7px] rounded-md text-xs font-semibold border border-[var(--vl-border2)] bg-transparent text-[var(--vl-text3)] hover:border-[var(--vl-red)]/50 hover:text-[var(--vl-red)] transition-colors cursor-pointer"
+            >
+              {"\uD83D\uDDD1 Apagar"}
+            </button>
+          )}
         </div>
       </div>
 
