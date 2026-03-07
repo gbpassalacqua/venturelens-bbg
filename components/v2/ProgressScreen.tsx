@@ -11,38 +11,38 @@ interface ProgressScreenProps {
 const STEPS = [
   {
     icon: "\u{1F916}",
-    name: "Parsing da Ideia por IA",
+    name: "AI Parsing da Ideia",
     detail: "Extraindo problema, ICP, vertical, monetiza\u00E7\u00E3o",
   },
   {
     icon: "\u{1F4CA}",
-    name: "Intelig\u00EAncia de Mercado",
-    detail: "Consultando fontes de dados e tend\u00EAncias\u2026",
+    name: "Agente Estrat\u00E9gia (McKinsey)",
+    detail: "An\u00E1lise de mercado, TAM/SAM/SOM, posicionamento",
   },
   {
     icon: "\u{1F4B0}",
-    name: "C\u00E1lculo TAM / SAM / SOM",
-    detail: "Estimativa top-down e bottom-up",
+    name: "Agente Finan\u00E7as (Goldman)",
+    detail: "Modelagem financeira, unit economics, proje\u00E7\u00F5es",
   },
   {
-    icon: "\u2694\uFE0F",
-    name: "An\u00E1lise de Competidores",
-    detail: "Identificando players diretos, indiretos e emergentes",
+    icon: "\u{1F4C8}",
+    name: "Agente Marketing (Growth)",
+    detail: "Canais de aquisi\u00E7\u00E3o, personas, growth strategy",
   },
   {
-    icon: "\u23F1",
-    name: "Motor de Timing de Mercado",
-    detail: "Avaliando prontid\u00E3o tecnol\u00F3gica e tend\u00EAncias",
-  },
-  {
-    icon: "\u26A0\uFE0F",
-    name: "An\u00E1lise de Riscos e Viabilidade",
-    detail: "Avaliando necessidades de capital e riscos",
+    icon: "\u2699\uFE0F",
+    name: "Agente Tecnologia (CTO)",
+    detail: "Stack t\u00E9cnico, arquitetura, riscos de engenharia",
   },
   {
     icon: "\u{1F3AF}",
-    name: "Gerando Opportunity Score",
+    name: "Calculando Opportunity Score",
     detail: "Score composto ponderado (0\u2013100)",
+  },
+  {
+    icon: "\u{1F4CB}",
+    name: "Gerando Relat\u00F3rio Final",
+    detail: "Consolidando insights dos 4 agentes",
   },
 ];
 
@@ -61,7 +61,8 @@ export default function ProgressScreen({ currentStep, onComplete }: ProgressScre
       <FlowBar
         steps={[
           { label: "Descrever Ideia", status: "done" },
-          { label: "An\u00E1lise em Andamento", status: "active" },
+          { label: "Confirmar", status: "done" },
+          { label: "Analisando", status: "active" },
           { label: "Dashboard", status: "pending" },
         ]}
       />

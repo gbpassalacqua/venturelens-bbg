@@ -8,6 +8,7 @@ import Link from "next/link";
 import Navbar from "@/components/v2/Navbar";
 import Hero from "@/components/v2/Hero";
 import InputScreen from "@/components/v2/InputScreen";
+import ConfirmScreen from "@/components/v2/ConfirmScreen";
 import ProgressScreen from "@/components/v2/ProgressScreen";
 import Dashboard from "@/components/v2/Dashboard";
 import CompetitorScreen from "@/components/v2/CompetitorScreen";
@@ -26,6 +27,7 @@ const USERS = ["Giuliano", "Bruno", "Bento"];
 type Screen =
   | "hero"
   | "input"
+  | "confirm"
   | "progress"
   | "dashboard"
   | "market"
@@ -37,7 +39,7 @@ type Screen =
   | "roadmap"
   | "pricing";
 
-type ProductMode = "site" | "html" | "prd";
+type TargetMarket = "usa" | "brasil" | "ambos";
 
 // Map screen to navbar tab id
 const SCREEN_TO_TAB: Record<string, string> = {
@@ -65,6 +67,32 @@ const APP_NAV_SCREENS: Screen[] = [
   "pricing",
 ];
 
+interface ConfirmFields {
+  problema: string;
+  solucao: string;
+  icp: string;
+  monetizacao: string;
+  vertical: string;
+  dependencias: string;
+  mercados: string;
+}
+
+const EMPTY_CONFIRM_FIELDS: ConfirmFields = {
+  problema: "",
+  solucao: "",
+  icp: "",
+  monetizacao: "",
+  vertical: "",
+  dependencias: "",
+  mercados: "",
+};
+
+function marketLabel(m: TargetMarket): string {
+  if (m === "usa") return "Estados Unidos";
+  if (m === "brasil") return "Brasil";
+  return "Estados Unidos e Brasil";
+}
+
 export default function Home() {
   // ── Navigation state ──
   const [screen, setScreen] = useState<Screen>("hero");
@@ -81,18 +109,17 @@ export default function Home() {
   // ── File state ──
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // ── Product mode ──
-  const [productMode, setProductMode] = useState<ProductMode>("prd");
-  const [siteUrl, setSiteUrl] = useState("");
-  const [htmlFile, setHtmlFile] = useState<File | null>(null);
+  // ── Idea description ──
+  const [ideaText, setIdeaText] = useState("");
 
-  // ── GitHub ──
-  const [githubUrl, setGithubUrl] = useState("");
-  const [selectedRepo, setSelectedRepo] = useState<{
-    fullName: string;
-    isPrivate: boolean;
-  } | null>(null);
-  const [packageJsonFile, setPackageJsonFile] = useState<File | null>(null);
+  // ── Product description (optional) ──
+  const [productDescription, setProductDescription] = useState("");
+
+  // ── Target market ──
+  const [targetMarket, setTargetMarket] = useState<TargetMarket>("ambos");
+
+  // ── Confirm fields ──
+  const [confirmFields, setConfirmFields] = useState<ConfirmFields>(EMPTY_CONFIRM_FIELDS);
 
   // ── PDF export state ──
   const [showPdfDownload, setShowPdfDownload] = useState(false);
@@ -104,6 +131,21 @@ export default function Home() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [screen]);
+
+  // ── Go to confirm screen (pre-populate fields) ──
+  function goToConfirm() {
+    setConfirmFields({
+      ...EMPTY_CONFIRM_FIELDS,
+      problema: ideaText,
+      mercados: marketLabel(targetMarket),
+    });
+    setScreen("confirm");
+  }
+
+  // ── Confirm field change handler ──
+  function handleConfirmFieldChange(field: string, value: string) {
+    setConfirmFields((prev) => ({ ...prev, [field]: value }));
+  }
 
   // ── Analysis handler ──
   const handleAnalyze = useCallback(async () => {
@@ -127,21 +169,16 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("created_by", selectedUser);
-      formData.append("productMode", productMode);
+      formData.append("productMode", "prd");
 
-      if (productMode === "site" && siteUrl.trim()) {
-        formData.append("siteUrl", siteUrl.trim());
+      // Send idea text and target market
+      if (ideaText.trim()) {
+        formData.append("ideaText", ideaText.trim());
       }
-      if (productMode === "html" && htmlFile) {
-        formData.append("htmlFile", htmlFile);
+      if (productDescription.trim()) {
+        formData.append("siteUrl", productDescription.trim());
       }
-
-      if (githubUrl.trim()) {
-        formData.append("githubUrl", githubUrl.trim());
-      }
-      if (packageJsonFile) {
-        formData.append("packageJsonFile", packageJsonFile);
-      }
+      formData.append("targetMarket", targetMarket);
 
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -176,11 +213,9 @@ export default function Home() {
   }, [
     selectedFile,
     selectedUser,
-    productMode,
-    siteUrl,
-    htmlFile,
-    githubUrl,
-    packageJsonFile,
+    ideaText,
+    productDescription,
+    targetMarket,
   ]);
 
   // Cleanup timer on unmount
@@ -209,12 +244,10 @@ export default function Home() {
     setResult(null);
     setSelectedFile(null);
     setError(null);
-    setProductMode("prd");
-    setSiteUrl("");
-    setHtmlFile(null);
-    setGithubUrl("");
-    setSelectedRepo(null);
-    setPackageJsonFile(null);
+    setIdeaText("");
+    setProductDescription("");
+    setTargetMarket("ambos");
+    setConfirmFields(EMPTY_CONFIRM_FIELDS);
     setScreen("input");
   }
 
@@ -260,29 +293,16 @@ export default function Home() {
           <>
             <InputScreen
               onFileSelected={(f) => setSelectedFile(f)}
-              onAnalyze={handleAnalyze}
+              onNext={goToConfirm}
               onBack={goToHero}
               selectedFile={selectedFile}
               isLoading={isLoading}
-              productMode={productMode}
-              onProductModeChange={setProductMode}
-              siteUrl={siteUrl}
-              onSiteUrlChange={setSiteUrl}
-              htmlFile={htmlFile}
-              onHtmlFileSelected={setHtmlFile}
-              githubUrl={githubUrl}
-              selectedRepo={selectedRepo}
-              packageJsonFile={packageJsonFile}
-              onGithubSelect={(url, fullName, isPrivate) => {
-                setGithubUrl(url);
-                setSelectedRepo({ fullName, isPrivate });
-                setPackageJsonFile(null);
-              }}
-              onGithubClear={() => {
-                setGithubUrl("");
-                setSelectedRepo(null);
-              }}
-              onPackageJsonSelected={setPackageJsonFile}
+              ideaText={ideaText}
+              onIdeaTextChange={setIdeaText}
+              productDescription={productDescription}
+              onProductDescriptionChange={setProductDescription}
+              targetMarket={targetMarket}
+              onTargetMarketChange={setTargetMarket}
               selectedUser={selectedUser}
               users={USERS}
               onUserChange={setSelectedUser}
@@ -297,6 +317,23 @@ export default function Home() {
               </div>
             )}
           </>
+        )}
+
+        {/* Confirm */}
+        {screen === "confirm" && (
+          <ConfirmScreen
+            problema={confirmFields.problema}
+            solucao={confirmFields.solucao}
+            icp={confirmFields.icp}
+            monetizacao={confirmFields.monetizacao}
+            vertical={confirmFields.vertical}
+            dependencias={confirmFields.dependencias}
+            mercados={confirmFields.mercados}
+            onFieldChange={handleConfirmFieldChange}
+            onConfirm={handleAnalyze}
+            onBack={goToInput}
+            isLoading={isLoading}
+          />
         )}
 
         {/* Progress */}
@@ -318,11 +355,11 @@ export default function Home() {
           <div className="max-w-[1200px] mx-auto p-10">
             <div className="mb-10">
               <h2 className="font-display text-[2rem] font-bold tracking-[-0.02em]">
-                Inteligência de Mercado
+                Intelig&ecirc;ncia de Mercado
               </h2>
               <p className="text-[var(--vl-text2)] mt-1.5">
-                TAM / SAM / SOM · Tendências de demanda · Velocidade de
-                investimento
+                TAM / SAM / SOM &middot; Tend&ecirc;ncias de demanda &middot;
+                Velocidade de investimento
               </p>
             </div>
 
@@ -379,7 +416,7 @@ export default function Home() {
 
             <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
               <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-                AVALIAÇÃO DE CREDIBILIDADE
+                AVALIA&Ccedil;&Atilde;O DE CREDIBILIDADE
                 <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
               <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
@@ -450,7 +487,7 @@ export default function Home() {
           href="/history"
           className="fixed bottom-6 right-6 px-4 py-2 rounded-lg bg-[var(--vl-card)] border border-[var(--vl-border)] text-sm text-[var(--vl-text2)] hover:text-[var(--vl-gold)] hover:border-[var(--vl-gold)] transition-all z-50"
         >
-          📋 Histórico
+          {"\u{1F4CB}"} Hist&oacute;rico
         </Link>
       )}
 

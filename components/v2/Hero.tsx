@@ -72,7 +72,7 @@ export default function Hero({ onStartAnalysis }: HeroProps) {
           {/* Badge */}
           <div className="inline-flex items-center gap-1.5 bg-[rgba(240,165,0,.08)] border border-[rgba(240,165,0,.2)] rounded-full py-1 px-3.5 pl-2 text-xs text-[var(--vl-gold)] mb-7">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--vl-green)] animate-pulse" />
-            Intelig&ecirc;ncia de Mercado em Tempo Real
+            Powered by 4 AI Agents
           </div>
 
           {/* H1 */}
@@ -86,9 +86,9 @@ export default function Hero({ onStartAnalysis }: HeroProps) {
 
           {/* Paragraph */}
           <p className="text-[1.05rem] text-[var(--vl-text2)] leading-[1.7] mb-9">
-            Envie seu PRD ou descreva sua ideia. O VentureLens AI retorna um
-            relat&oacute;rio completo de valida&ccedil;&atilde;o &mdash; TAM,
-            competidores, timing e opportunity score &mdash; instantaneamente.
+            Envie seu PRD ou descreva sua ideia. 4 agentes de IA especializados
+            &mdash; Estrat&eacute;gia, Finan&ccedil;as, Marketing e Tecnologia
+            &mdash; analisam e retornam um relat&oacute;rio completo instantaneamente.
           </p>
 
           {/* CTA */}
@@ -208,8 +208,8 @@ export default function Hero({ onStartAnalysis }: HeroProps) {
 
       {/* ── Footer ── */}
       <footer className="text-center py-8 text-[var(--vl-text3)] text-xs border-t border-[var(--vl-border)] mt-10">
-        &copy; 2025 VentureLens AI &middot; Plataforma de Valida&ccedil;&atilde;o
-        de Startups
+        &copy; 2026 VentureLens AI &middot; Startup Validation Platform &middot;
+        contato@venturelens.ai
       </footer>
     </div>
   );
