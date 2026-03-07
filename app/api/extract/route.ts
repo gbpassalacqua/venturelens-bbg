@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { extractTextFromFile } from "@/lib/file-utils";
 
 const GEMINI_MODEL = "gemini-3-flash-preview";
+
+// MIME types that Gemini accepts as inline data (multimodal)
+const GEMINI_INLINE_MIMES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
 
 const EXTRACT_PROMPT = `Você é um assistente que extrai informações-chave de documentos de startups (PRDs, pitch decks, apresentações).
 
@@ -64,24 +74,66 @@ export async function POST(req: NextRequest) {
     let parts: any[];
 
     if (file) {
-      // ENVIAR PDF DIRETO COMO BASE64 — NÃO extrair texto antes
-      const bytes = await file.arrayBuffer();
-      const base64 = Buffer.from(bytes).toString("base64");
       const mimeType = file.type || "application/pdf";
 
-      console.log(
-        `[extract] Sending file as base64: ${file.name}, ${mimeType}, ${Math.round(bytes.byteLength / 1024)}KB`,
-      );
+      if (GEMINI_INLINE_MIMES.has(mimeType)) {
+        // PDF/images → send as base64 inline data (multimodal)
+        const bytes = await file.arrayBuffer();
+        const base64 = Buffer.from(bytes).toString("base64");
 
-      parts = [
-        { text: EXTRACT_PROMPT },
-        {
-          inlineData: {
-            mimeType: mimeType,
-            data: base64,
+        console.log(
+          `[extract] Sending file as base64: ${file.name}, ${mimeType}, ${Math.round(bytes.byteLength / 1024)}KB`,
+        );
+
+        parts = [
+          { text: EXTRACT_PROMPT },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64,
+            },
           },
-        },
-      ];
+        ];
+      } else {
+        // DOCX, TXT, etc → extract text first, then send as text prompt
+        console.log(
+          `[extract] Extracting text from file: ${file.name}, ${mimeType}`,
+        );
+
+        let documentContent: string;
+        try {
+          documentContent = await extractTextFromFile(file);
+        } catch (err) {
+          console.error("[extract] Text extraction failed:", err);
+          return NextResponse.json(
+            { error: "Falha ao ler o arquivo" },
+            { status: 400 },
+          );
+        }
+
+        if (!documentContent || documentContent.trim().length < 20) {
+          console.warn(
+            `[extract] Insufficient content: ${documentContent?.trim().length || 0} chars`,
+          );
+          return NextResponse.json(
+            { error: "Conteúdo insuficiente para extração" },
+            { status: 400 },
+          );
+        }
+
+        // Truncate to first 8000 chars for fast extraction
+        const truncated = documentContent.slice(0, 8000);
+        console.log(
+          `[extract] Extracted ${documentContent.length} chars, sending ${truncated.length} to Gemini`,
+        );
+
+        parts = [
+          {
+            text:
+              EXTRACT_PROMPT + "\n\n--- DOCUMENTO ---\n" + truncated,
+          },
+        ];
+      }
     } else {
       console.log(
         `[extract] Sending text input: ${textInput!.substring(0, 100)}...`,
