@@ -21,7 +21,7 @@ export const geminiExtractModel = genAI.getGenerativeModel({
   model: GEMINI_MODEL,
   generationConfig: {
     temperature: 0.1,
-    maxOutputTokens: 1024,
+    maxOutputTokens: 2048,
     responseMimeType: "application/json",
   },
 });

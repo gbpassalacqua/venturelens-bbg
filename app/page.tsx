@@ -160,31 +160,37 @@ export default function Home() {
         formData.append("text", ideaText.trim());
       }
 
+      console.log("=== FRONTEND: Calling /api/extract ===");
       const res = await fetch("/api/extract", {
         method: "POST",
         body: formData,
       });
 
+      console.log("=== FRONTEND: Extract response status ===", res.status);
+
       if (res.ok) {
         const data = await res.json();
+        console.log("=== FRONTEND: Extract data ===", JSON.stringify(data).substring(0, 300));
         if (data.fields) {
+          const NOT_IDENTIFIED = "Não identificado no documento";
           setConfirmFields((prev) => ({
-            problema: data.fields.problema || prev.problema || "",
-            solucao: data.fields.solucao || prev.solucao || "",
-            icp: data.fields.icp || prev.icp || "",
-            monetizacao: data.fields.monetizacao || prev.monetizacao || "",
-            vertical: data.fields.vertical || prev.vertical || "",
-            dependencias: data.fields.dependenciasTech || prev.dependencias || "",
-            mercados: data.fields.mercadosAlvo || prev.mercados || marketLabel(targetMarket),
+            problema: (data.fields.problema && data.fields.problema !== NOT_IDENTIFIED) ? data.fields.problema : prev.problema || "",
+            solucao: (data.fields.solucao && data.fields.solucao !== NOT_IDENTIFIED) ? data.fields.solucao : prev.solucao || "",
+            icp: (data.fields.icp && data.fields.icp !== NOT_IDENTIFIED) ? data.fields.icp : prev.icp || "",
+            monetizacao: (data.fields.monetizacao && data.fields.monetizacao !== NOT_IDENTIFIED) ? data.fields.monetizacao : prev.monetizacao || "",
+            vertical: (data.fields.vertical && data.fields.vertical !== NOT_IDENTIFIED) ? data.fields.vertical : prev.vertical || "",
+            dependencias: (data.fields.dependenciasTech && data.fields.dependenciasTech !== NOT_IDENTIFIED) ? data.fields.dependenciasTech : prev.dependencias || "",
+            mercados: (data.fields.mercadosAlvo && data.fields.mercadosAlvo !== NOT_IDENTIFIED) ? data.fields.mercadosAlvo : prev.mercados || marketLabel(targetMarket),
           }));
         }
       } else {
         // Extraction failed — leave fields as-is, user can fill manually
-        console.warn("Extract API returned error:", res.status);
+        const errBody = await res.text();
+        console.warn("=== FRONTEND: Extract API error ===", res.status, errBody);
       }
     } catch (err) {
       // Network error — don't block the flow
-      console.warn("Extract failed:", err);
+      console.warn("=== FRONTEND: Extract fetch error ===", err);
     } finally {
       setIsExtracting(false);
     }
