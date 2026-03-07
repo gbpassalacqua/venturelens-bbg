@@ -12,12 +12,16 @@
     --vl-border2: #253756;
     --vl-gold: #F0A500;
     --vl-gold2: #FFD166;
+    --vl-blue: #3B82F6;
+    --vl-blue2: #60A5FA;
     --vl-green: #22C55E;
     --vl-red: #EF4444;
     --vl-amber: #FB923C;
     --vl-text: #EEF2FF;
     --vl-text2: #94A3B8;
     --vl-text3: #4B6080;
+    --vl-radius: 12px;
+    --vl-radius2: 8px;
 
     --background: 220 40% 7%;
     --foreground: 226 100% 97%;
@@ -50,9 +54,17 @@
     background: var(--vl-bg);
     color: var(--vl-text);
     font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
   }
 }
 
+/* ── SCROLLBAR ──────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--vl-bg2); }
+::-webkit-scrollbar-thumb { background: var(--vl-border2); border-radius: 3px; }
+
+/* ── NOISE OVERLAY ──────────────────────────── */
 body::before {
   content: '';
   position: fixed;
@@ -68,12 +80,32 @@ body > * {
   z-index: 1;
 }
 
+/* ── FONTS ──────────────────────────────────── */
 .font-display {
   font-family: 'Fraunces', serif;
 }
 
 .font-mono {
   font-family: 'DM Mono', monospace;
+}
+
+/* ── ANIMATIONS ─────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.35s ease;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out forwards;
 }
 
 @keyframes bar-fill {
@@ -84,11 +116,27 @@ body > * {
   animation: bar-fill 1s ease-out forwards;
 }
 
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
-.animate-fade-up {
-  animation: fade-up 0.5s ease-out forwards;
+.animate-pulse-dot {
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes spinnerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240,165,0,.3); }
+  50% { box-shadow: 0 0 0 8px rgba(240,165,0,0); }
+}
+
+.animate-spinner-pulse {
+  animation: spinnerPulse 1s infinite;
+}
+
+/* ── RESPONSIVE ─────────────────────────────── */
+@media (max-width: 900px) {
+  .responsive-hide {
+    display: none !important;
+  }
 }

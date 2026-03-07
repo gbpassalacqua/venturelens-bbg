@@ -1,0 +1,69 @@
+"use client";
+
+import React from "react";
+
+interface TAMCardsProps {
+  tam: string;
+  sam: string;
+  som: string;
+}
+
+export default function TAMCards({ tam, sam, som }: TAMCardsProps) {
+  const cards = [
+    {
+      key: "tam",
+      label: "TAM \u2014 Total",
+      value: tam || "N/D",
+      description: "Mercado Total Endere\u00e7\u00e1vel",
+      stripColor: "bg-[var(--vl-gold)]",
+      valueColor: "text-[var(--vl-gold)]",
+    },
+    {
+      key: "sam",
+      label: "SAM",
+      value: sam || "N/D",
+      description: "Mercado Endere\u00e7\u00e1vel Acess\u00edvel",
+      stripColor: "bg-[var(--vl-blue)]",
+      valueColor: "text-[var(--vl-blue2)]",
+    },
+    {
+      key: "som",
+      label: "SOM",
+      value: som || "N/D",
+      description: "Mercado Obt\u00edvel",
+      stripColor: "bg-[var(--vl-green)]",
+      valueColor: "text-[var(--vl-green)]",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-3 mb-5 max-[900px]:grid-cols-1">
+      {cards.map((card) => (
+        <div
+          key={card.key}
+          className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-5 relative overflow-hidden"
+        >
+          {/* Bottom colored strip */}
+          <div
+            className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.stripColor}`}
+          />
+
+          {/* Label */}
+          <div className="text-[.7rem] uppercase tracking-widest text-[var(--vl-text3)] mb-2">
+            {card.label}
+          </div>
+
+          {/* Value */}
+          <div className={`font-display text-[2rem] font-bold ${card.valueColor}`}>
+            {card.value}
+          </div>
+
+          {/* Description */}
+          <div className="text-xs text-[var(--vl-text2)] mt-1.5">
+            {card.description}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

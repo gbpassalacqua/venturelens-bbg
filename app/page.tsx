@@ -1,41 +1,127 @@
 "use client";
 
-import { useState, useRef } from "react";
-import UploadZone from "@/components/UploadZone";
-import ReportOutput from "@/components/ReportOutput";
-import LoadingSteps from "@/components/LoadingSteps";
-import RepoSelector from "@/components/RepoSelector";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { AnalysisResult, AnalysisResponse } from "@/types/analysis";
 import Link from "next/link";
 
+// V2 Components
+import Navbar from "@/components/v2/Navbar";
+import Hero from "@/components/v2/Hero";
+import InputScreen from "@/components/v2/InputScreen";
+import ProgressScreen from "@/components/v2/ProgressScreen";
+import Dashboard from "@/components/v2/Dashboard";
+import CompetitorScreen from "@/components/v2/CompetitorScreen";
+import TimingScreen from "@/components/v2/TimingScreen";
+import RiskScreen from "@/components/v2/RiskScreen";
+import FullReport from "@/components/v2/FullReport";
+import PersonaScreen from "@/components/v2/PersonaScreen";
+import RoadmapScreen from "@/components/v2/RoadmapScreen";
+import PricingScreen from "@/components/v2/PricingScreen";
+
+// PDF
+import ReportPDFDownload from "@/components/ReportPDFDownload";
+
 const USERS = ["Giuliano", "Bruno", "Bento"];
+
+type Screen =
+  | "hero"
+  | "input"
+  | "progress"
+  | "dashboard"
+  | "market"
+  | "competitors"
+  | "timing"
+  | "risks"
+  | "report"
+  | "personas"
+  | "roadmap"
+  | "pricing";
 
 type ProductMode = "site" | "html" | "prd";
 
+// Map screen to navbar tab id
+const SCREEN_TO_TAB: Record<string, string> = {
+  dashboard: "dashboard",
+  market: "market",
+  competitors: "competitors",
+  timing: "timing",
+  risks: "risks",
+  report: "report",
+  personas: "personas",
+  roadmap: "roadmap",
+  pricing: "pricing",
+};
+
+// Screens that show the app navbar
+const APP_NAV_SCREENS: Screen[] = [
+  "dashboard",
+  "market",
+  "competitors",
+  "timing",
+  "risks",
+  "report",
+  "personas",
+  "roadmap",
+  "pricing",
+];
+
 export default function Home() {
+  // ── Navigation state ──
+  const [screen, setScreen] = useState<Screen>("hero");
+
+  // ── Analysis state ──
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progressStep, setProgressStep] = useState(0);
+
+  // ── User state ──
   const [selectedUser, setSelectedUser] = useState(USERS[0]);
+
+  // ── File state ──
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Produto fields
+  // ── Product mode ──
   const [productMode, setProductMode] = useState<ProductMode>("prd");
   const [siteUrl, setSiteUrl] = useState("");
   const [htmlFile, setHtmlFile] = useState<File | null>(null);
-  const htmlRef = useRef<HTMLInputElement>(null);
 
-  // Código fields
+  // ── GitHub ──
   const [githubUrl, setGithubUrl] = useState("");
-  const [selectedRepo, setSelectedRepo] = useState<{ fullName: string; isPrivate: boolean } | null>(null);
+  const [selectedRepo, setSelectedRepo] = useState<{
+    fullName: string;
+    isPrivate: boolean;
+  } | null>(null);
   const [packageJsonFile, setPackageJsonFile] = useState<File | null>(null);
-  const packageJsonRef = useRef<HTMLInputElement>(null);
 
-  async function handleAnalyze() {
+  // ── PDF export state ──
+  const [showPdfDownload, setShowPdfDownload] = useState(false);
+
+  // ── Progress timer ref ──
+  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Scroll to top on screen change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
+
+  // ── Analysis handler ──
+  const handleAnalyze = useCallback(async () => {
     if (!selectedFile) return;
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setProgressStep(0);
+    setScreen("progress");
+
+    // Start progress animation
+    let step = 0;
+    progressTimerRef.current = setInterval(() => {
+      step++;
+      if (step <= 6) {
+        setProgressStep(step);
+      }
+    }, 4000);
 
     try {
       const formData = new FormData();
@@ -57,264 +143,334 @@ export default function Home() {
         formData.append("packageJsonFile", packageJsonFile);
       }
 
-      const res = await fetch("/api/analyze", { method: "POST", body: formData });
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
       const json: AnalysisResponse = await res.json();
 
-      if (!json.success || !json.data) throw new Error(json.error ?? "Erro na análise");
+      if (!json.success || !json.data) {
+        throw new Error(json.error ?? "Erro na análise");
+      }
+
+      // Complete progress and show dashboard
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+      }
+      setProgressStep(7); // All done
       setResult(json.data);
+
+      // Short delay then show dashboard
+      setTimeout(() => {
+        setScreen("dashboard");
+      }, 800);
     } catch (err) {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+      }
       setError(err instanceof Error ? err.message : "Algo deu errado");
+      setScreen("input");
     } finally {
       setIsLoading(false);
     }
+  }, [
+    selectedFile,
+    selectedUser,
+    productMode,
+    siteUrl,
+    htmlFile,
+    githubUrl,
+    packageJsonFile,
+  ]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+      }
+    };
+  }, []);
+
+  // ── Navigation handlers ──
+  function goToHero() {
+    setScreen("hero");
   }
 
-  // Build dynamic extra steps for LoadingSteps
-  const extraSteps: { icon: string; label: string }[] = [];
-  if (productMode === "site") {
-    extraSteps.push({ icon: "🌐", label: "Analisando o site do produto..." });
-  }
-  if (productMode === "html") {
-    extraSteps.push({ icon: "📄", label: "Lendo HTML do produto..." });
-  }
-  if (githubUrl.trim()) {
-    extraSteps.push({ icon: "💻", label: "Lendo arquivos do código... (pode levar 30s)" });
-    extraSteps.push({ icon: "🔒", label: "Auditando segurança..." });
+  function goToInput() {
+    setScreen("input");
   }
 
-  const hasRepo = !!selectedRepo;
-  const hasPkg = !!packageJsonFile;
+  function handleTabChange(tab: string) {
+    setScreen(tab as Screen);
+  }
+
+  function handleNewAnalysis() {
+    setResult(null);
+    setSelectedFile(null);
+    setError(null);
+    setProductMode("prd");
+    setSiteUrl("");
+    setHtmlFile(null);
+    setGithubUrl("");
+    setSelectedRepo(null);
+    setPackageJsonFile(null);
+    setScreen("input");
+  }
+
+  function handleExportPDF() {
+    setShowPdfDownload(true);
+  }
+
+  // ── Navbar mode ──
+  const showAppNav = APP_NAV_SCREENS.includes(screen);
+  const showLandingNav = screen === "hero";
 
   return (
     <main className="min-h-screen">
-      {/* Navbar */}
-      <nav className="sticky top-0 z-50 border-b border-[var(--vl-border)] bg-[var(--vl-bg)]/80 backdrop-blur-xl">
-        <div className="container mx-auto px-4 max-w-5xl flex items-center justify-between h-14">
-          <div className="flex items-center gap-1">
-            <span className="font-display font-bold text-xl text-[var(--vl-gold)]">VentureLens</span>
-            <span className="text-sm text-[var(--vl-text3)] font-medium ml-1">BBG</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/history" className="text-sm text-[var(--vl-text2)] hover:text-[var(--vl-text)] transition-colors">
-              Histórico
-            </Link>
-            <div className="flex gap-1 bg-[var(--vl-bg2)] rounded-lg p-0.5">
-              {USERS.map((u) => (
-                <button
-                  key={u}
-                  onClick={() => setSelectedUser(u)}
-                  className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all ${
-                    selectedUser === u
-                      ? "bg-[var(--vl-gold)] text-[var(--vl-bg)]"
-                      : "text-[var(--vl-text3)] hover:text-[var(--vl-text2)]"
-                  }`}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </nav>
+      {/* Landing Navbar */}
+      {showLandingNav && (
+        <Navbar
+          mode="landing"
+          onLogoClick={goToHero}
+          onNewAnalysis={goToInput}
+          onPricingClick={() => setScreen("pricing")}
+        />
+      )}
 
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
-        {!result && (
-          <div className="max-w-2xl mx-auto space-y-6">
-            <div className="text-center space-y-2 pt-8">
-              <h1 className="font-display text-4xl font-bold text-[var(--vl-text)]">
-                Analise seu <span className="text-[var(--vl-gold)]">Pitch Deck</span>
-              </h1>
-              <p className="text-[var(--vl-text3)]">4 agentes IA especializados · Análise institucional · V2</p>
-            </div>
+      {/* App Navbar */}
+      {showAppNav && (
+        <Navbar
+          mode="app"
+          activeTab={SCREEN_TO_TAB[screen] || "dashboard"}
+          onTabChange={handleTabChange}
+          onNewAnalysis={handleNewAnalysis}
+          onLogoClick={goToHero}
+          onPricingClick={() => setScreen("pricing")}
+        />
+      )}
 
-            <UploadZone onFileSelected={(f) => setSelectedFile(f)} isLoading={isLoading} />
+      {/* ── SCREENS ── */}
+      <div className="animate-fadeIn" key={screen}>
+        {/* Hero / Landing */}
+        {screen === "hero" && <Hero onStartAnalysis={goToInput} />}
 
-            {/* ── SEÇÃO: Produto (opcional) ── */}
-            <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-base">🛍️</span>
-                <h3 className="font-display font-bold text-sm text-[var(--vl-text)]">Produto</h3>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--vl-bg2)] text-[var(--vl-text3)]">Opcional</span>
+        {/* Input */}
+        {screen === "input" && (
+          <>
+            <InputScreen
+              onFileSelected={(f) => setSelectedFile(f)}
+              onAnalyze={handleAnalyze}
+              onBack={goToHero}
+              selectedFile={selectedFile}
+              isLoading={isLoading}
+              productMode={productMode}
+              onProductModeChange={setProductMode}
+              siteUrl={siteUrl}
+              onSiteUrlChange={setSiteUrl}
+              htmlFile={htmlFile}
+              onHtmlFileSelected={setHtmlFile}
+              githubUrl={githubUrl}
+              selectedRepo={selectedRepo}
+              packageJsonFile={packageJsonFile}
+              onGithubSelect={(url, fullName, isPrivate) => {
+                setGithubUrl(url);
+                setSelectedRepo({ fullName, isPrivate });
+                setPackageJsonFile(null);
+              }}
+              onGithubClear={() => {
+                setGithubUrl("");
+                setSelectedRepo(null);
+              }}
+              onPackageJsonSelected={setPackageJsonFile}
+              selectedUser={selectedUser}
+              users={USERS}
+              onUserChange={setSelectedUser}
+            />
+
+            {/* Error display */}
+            {error && (
+              <div className="max-w-[760px] mx-auto px-10 mt-4">
+                <div className="p-4 rounded-xl border border-[var(--vl-red)]/30 bg-[var(--vl-red)]/5">
+                  <p className="text-sm text-[var(--vl-red)]">{error}</p>
+                </div>
               </div>
+            )}
+          </>
+        )}
 
-              {/* 3 pill buttons */}
-              <div className="flex gap-2">
-                {([
-                  { mode: "site" as ProductMode, icon: "🌐", label: "Tenho site no ar" },
-                  { mode: "html" as ProductMode, icon: "📄", label: "Tenho HTML" },
-                  { mode: "prd" as ProductMode, icon: "📋", label: "Só o PRD" },
-                ]).map(({ mode, icon, label }) => (
-                  <button
-                    key={mode}
-                    onClick={() => {
-                      setProductMode(mode);
-                      if (mode !== "site") setSiteUrl("");
-                      if (mode !== "html") {
-                        setHtmlFile(null);
-                        if (htmlRef.current) htmlRef.current.value = "";
-                      }
-                    }}
-                    className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all border ${
-                      productMode === mode
-                        ? "bg-[var(--vl-gold)]/10 border-[var(--vl-gold)]/50 text-[var(--vl-gold)]"
-                        : "bg-[var(--vl-bg2)] border-[var(--vl-border)] text-[var(--vl-text3)] hover:text-[var(--vl-text2)] hover:border-[var(--vl-gold)]/30"
-                    }`}
+        {/* Progress */}
+        {screen === "progress" && (
+          <ProgressScreen currentStep={progressStep} />
+        )}
+
+        {/* Dashboard */}
+        {screen === "dashboard" && result && (
+          <Dashboard
+            report={result.report_json}
+            onTabChange={handleTabChange}
+            onExportPDF={handleExportPDF}
+          />
+        )}
+
+        {/* Market - reuse Dashboard TAM section */}
+        {screen === "market" && result && (
+          <div className="max-w-[1200px] mx-auto p-10">
+            <div className="mb-10">
+              <h2 className="font-display text-[2rem] font-bold tracking-[-0.02em]">
+                Inteligência de Mercado
+              </h2>
+              <p className="text-[var(--vl-text2)] mt-1.5">
+                TAM / SAM / SOM · Tendências de demanda · Velocidade de
+                investimento
+              </p>
+            </div>
+
+            <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
+                TAMANHO DE MERCADO
+                <span className="flex-1 h-px bg-[var(--vl-border)]" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+                {[
+                  {
+                    label: "TAM — Total",
+                    val:
+                      result.report_json.strategyAnalysis.marketSize.tam,
+                    color: "var(--vl-gold)",
+                    bar: "var(--vl-gold)",
+                  },
+                  {
+                    label: "SAM",
+                    val:
+                      result.report_json.strategyAnalysis.marketSize.sam,
+                    color: "var(--vl-blue2)",
+                    bar: "var(--vl-blue)",
+                  },
+                  {
+                    label: "SOM",
+                    val:
+                      result.report_json.strategyAnalysis.marketSize.som,
+                    color: "var(--vl-green)",
+                    bar: "var(--vl-green)",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-5 relative overflow-hidden"
                   >
-                    {icon} {label}
-                  </button>
+                    <div className="text-[.7rem] uppercase tracking-widest text-[var(--vl-text3)] mb-2">
+                      {item.label}
+                    </div>
+                    <div
+                      className="font-display text-[2rem] font-bold"
+                      style={{ color: item.color }}
+                    >
+                      {item.val}
+                    </div>
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-[3px]"
+                      style={{ background: item.bar }}
+                    />
+                  </div>
                 ))}
               </div>
-
-              {/* Conditional: Site URL */}
-              {productMode === "site" && (
-                <div className="animate-fade-up">
-                  <input
-                    type="url"
-                    placeholder="https://meuproduto.com.br"
-                    value={siteUrl}
-                    onChange={(e) => setSiteUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-border)] text-sm text-[var(--vl-text)] placeholder:text-[var(--vl-text3)] focus:outline-none focus:border-[var(--vl-gold)]/50 transition-colors"
-                  />
-                  <p className="text-[10px] text-[var(--vl-text3)] mt-1.5">URL do site para enriquecer a análise de produto</p>
-                </div>
-              )}
-
-              {/* Conditional: HTML upload */}
-              {productMode === "html" && (
-                <div className="animate-fade-up space-y-2">
-                  <input
-                    ref={htmlRef}
-                    type="file"
-                    accept=".html,.htm"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) setHtmlFile(f);
-                    }}
-                    className="hidden"
-                  />
-                  {!htmlFile ? (
-                    <button
-                      onClick={() => htmlRef.current?.click()}
-                      className="w-full py-3 rounded-lg border border-dashed border-[var(--vl-border)] bg-[var(--vl-bg2)] text-xs text-[var(--vl-text3)] hover:border-[var(--vl-gold)]/40 hover:text-[var(--vl-text2)] transition-colors"
-                    >
-                      📄 Clique para enviar o arquivo HTML
-                    </button>
-                  ) : (
-                    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-green)]/30">
-                      <span className="text-xs text-[var(--vl-green)]">✓ {htmlFile.name}</span>
-                      <button
-                        onClick={() => {
-                          setHtmlFile(null);
-                          if (htmlRef.current) htmlRef.current.value = "";
-                        }}
-                        className="text-xs text-[var(--vl-text3)] hover:text-[var(--vl-red)]"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                  <p className="text-[10px] text-[var(--vl-text3)]">Arquivo HTML da landing page ou produto</p>
-                </div>
-              )}
             </div>
 
-            {/* ── SEÇÃO: Código (opcional) ── */}
-            <div className="rounded-xl border border-[var(--vl-border)] bg-[var(--vl-card)] p-5 space-y-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-base">💻</span>
-                <h3 className="font-display font-bold text-sm text-[var(--vl-text)]">Repositório GitHub</h3>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--vl-bg2)] text-[var(--vl-text3)]">Opcional</span>
+            <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
+                AVALIAÇÃO DE CREDIBILIDADE
+                <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
-
-              <p className="text-[10px] text-[var(--vl-text3)]">
-                Use o repositório <strong className="text-[var(--vl-text2)]">OU</strong> envie o package.json
+              <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
+                {
+                  result.report_json.strategyAnalysis.marketSize
+                    .credibilityAssessment
+                }
               </p>
-
-              {/* RepoSelector */}
-              <RepoSelector
-                onSelect={(url, fullName, isPrivate) => {
-                  setGithubUrl(url);
-                  setSelectedRepo({ fullName, isPrivate });
-                  // Clear package.json when repo is selected
-                  setPackageJsonFile(null);
-                  if (packageJsonRef.current) packageJsonRef.current.value = "";
-                }}
-                onClear={() => {
-                  setGithubUrl("");
-                  setSelectedRepo(null);
-                }}
-                selected={selectedRepo}
-                disabled={hasPkg}
-              />
-
-              {/* OR divider */}
-              {!hasRepo && !hasPkg && (
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px bg-[var(--vl-border)]" />
-                  <span className="text-[10px] text-[var(--vl-text3)]">ou</span>
-                  <div className="flex-1 h-px bg-[var(--vl-border)]" />
-                </div>
-              )}
-
-              {/* Upload package.json */}
-              {!hasRepo && (
-                <div className="space-y-2">
-                  <input
-                    ref={packageJsonRef}
-                    type="file"
-                    accept=".json"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) setPackageJsonFile(f);
-                    }}
-                    className="hidden"
-                  />
-                  {!packageJsonFile ? (
-                    <button
-                      onClick={() => packageJsonRef.current?.click()}
-                      className="w-full py-3 rounded-lg border border-dashed border-[var(--vl-border)] bg-[var(--vl-bg2)] text-xs text-[var(--vl-text3)] hover:border-[var(--vl-gold)]/40 hover:text-[var(--vl-text2)] transition-colors"
-                    >
-                      📦 Clique para enviar o package.json
-                    </button>
-                  ) : (
-                    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-green)]/30">
-                      <span className="text-xs text-[var(--vl-green)]">✓ {packageJsonFile.name}</span>
-                      <button
-                        onClick={() => {
-                          setPackageJsonFile(null);
-                          if (packageJsonRef.current) packageJsonRef.current.value = "";
-                        }}
-                        className="text-xs text-[var(--vl-text3)] hover:text-[var(--vl-red)]"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
-            {selectedFile && !isLoading && (
-              <button
-                onClick={handleAnalyze}
-                className="w-full py-3 rounded-xl font-display font-bold text-lg bg-[var(--vl-gold)] text-[var(--vl-bg)] hover:bg-[var(--vl-gold2)] transition-colors"
-              >
-                Analisar PRD
-              </button>
-            )}
-
-            {isLoading && <LoadingSteps extraSteps={extraSteps} />}
-
-            {error && (
-              <div className="p-4 rounded-xl border border-[var(--vl-red)]/30 bg-[var(--vl-red)]/5">
-                <p className="text-sm text-[var(--vl-red)]">{error}</p>
+            <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
+                TIMING DE MERCADO
+                <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
-            )}
+              <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
+                {
+                  result.report_json.strategyAnalysis.marketSize
+                    .marketTiming
+                }
+              </p>
+            </div>
           </div>
         )}
 
-        {result && <ReportOutput result={result} />}
+        {/* Competitors */}
+        {screen === "competitors" && result && (
+          <CompetitorScreen report={result.report_json} />
+        )}
+
+        {/* Timing */}
+        {screen === "timing" && result && (
+          <TimingScreen report={result.report_json} />
+        )}
+
+        {/* Risks */}
+        {screen === "risks" && result && (
+          <RiskScreen report={result.report_json} />
+        )}
+
+        {/* Full Report */}
+        {screen === "report" && result && (
+          <FullReport
+            report={result.report_json}
+            onExportPDF={handleExportPDF}
+          />
+        )}
+
+        {/* Personas */}
+        {screen === "personas" && result && (
+          <PersonaScreen report={result.report_json} />
+        )}
+
+        {/* Roadmap */}
+        {screen === "roadmap" && result && (
+          <RoadmapScreen report={result.report_json} />
+        )}
+
+        {/* Pricing */}
+        {screen === "pricing" && (
+          <PricingScreen onStartAnalysis={goToInput} />
+        )}
       </div>
+
+      {/* History link - floating */}
+      {screen === "hero" && (
+        <Link
+          href="/history"
+          className="fixed bottom-6 right-6 px-4 py-2 rounded-lg bg-[var(--vl-card)] border border-[var(--vl-border)] text-sm text-[var(--vl-text2)] hover:text-[var(--vl-gold)] hover:border-[var(--vl-gold)] transition-all z-50"
+        >
+          📋 Histórico
+        </Link>
+      )}
+
+      {/* PDF Download overlay */}
+      {showPdfDownload && result && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[200]">
+          <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-8 max-w-md mx-4">
+            <h3 className="font-display text-lg font-bold mb-4">
+              Exportar PDF
+            </h3>
+            <ReportPDFDownload result={result} />
+            <button
+              onClick={() => setShowPdfDownload(false)}
+              className="mt-4 w-full py-2 rounded-lg border border-[var(--vl-border2)] text-sm text-[var(--vl-text2)] hover:text-[var(--vl-text)] hover:border-[var(--vl-text2)] transition-all"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
