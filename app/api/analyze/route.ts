@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
 import { getServiceSupabase } from "@/lib/supabase";
 import { extractTextFromFile } from "@/lib/file-utils";
 import type { GithubStatus } from "@/types/analysis";
+
+export const dynamic = "force-dynamic";
 
 // ------- GitHub helpers -------
 interface GithubResult {
@@ -789,124 +790,181 @@ async function resolveGithub(
   };
 }
 
-// ------- Main POST handler -------
-export async function POST(request: Request) {
+// ------- Streaming helpers -------
+function sendLine(controller: ReadableStreamDefaultController, encoder: TextEncoder, data: object) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const createdBy = (formData.get("created_by") as string) || "unknown";
-    const githubUrl = (formData.get("githubUrl") as string) || null;
-    const packageJsonFile = (formData.get("packageJsonFile") as File | null) || null;
-    const extractedContext = (formData.get("extractedContext") as string) || null;
+    controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+  } catch {
+    // controller may be closed
+  }
+}
 
-    if (!file) return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
+// ------- Main POST handler (streaming to bypass Vercel timeout) -------
+export async function POST(request: Request) {
+  const encoder = new TextEncoder();
 
-    const textoExtraido = await extractTextFromFile(file);
+  const stream = new ReadableStream({
+    async start(controller) {
+      // Heartbeat interval — keeps connection alive during long Gemini calls
+      const heartbeat = setInterval(() => {
+        sendLine(controller, encoder, { type: "heartbeat", ts: Date.now() });
+      }, 5000);
 
-    if (!textoExtraido || textoExtraido.trim().length < 50) {
-      return NextResponse.json({ success: false, error: "Could not extract enough text from file" }, { status: 400 });
-    }
-
-    const github = await resolveGithub(githubUrl, packageJsonFile);
-
-    const { geminiModel } = await import("@/lib/gemini");
-    const { VENTURELENS_SYSTEM_PROMPT, V2_SCHEMA_PART_A, V2_SCHEMA_PART_B } = await import("@/lib/playbook");
-
-    let prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalyze this document:\n\n${textoExtraido}`;
-
-    // Append founder-provided context if available
-    if (extractedContext) {
       try {
-        const fields = JSON.parse(extractedContext);
-        prompt += `\n\n--- CONTEXTO ADICIONAL FORNECIDO PELO FUNDADOR ---
+        // ── Step 1: Parse FormData ──
+        sendLine(controller, encoder, { type: "status", step: 1, message: "Preparando documento..." });
+
+        const formData = await request.formData();
+        const file = formData.get("file") as File | null;
+        const createdBy = (formData.get("created_by") as string) || "unknown";
+        const githubUrl = (formData.get("githubUrl") as string) || null;
+        const packageJsonFile = (formData.get("packageJsonFile") as File | null) || null;
+        const extractedContext = (formData.get("extractedContext") as string) || null;
+
+        if (!file) {
+          clearInterval(heartbeat);
+          sendLine(controller, encoder, { type: "error", message: "No file provided" });
+          controller.close();
+          return;
+        }
+
+        const textoExtraido = await extractTextFromFile(file);
+
+        if (!textoExtraido || textoExtraido.trim().length < 50) {
+          clearInterval(heartbeat);
+          sendLine(controller, encoder, { type: "error", message: "Could not extract enough text from file" });
+          controller.close();
+          return;
+        }
+
+        // ── Step 2: Resolve GitHub ──
+        sendLine(controller, encoder, { type: "status", step: 2, message: "Verificando reposit\u00f3rio..." });
+
+        const github = await resolveGithub(githubUrl, packageJsonFile);
+
+        // ── Step 3: Build prompt ──
+        sendLine(controller, encoder, { type: "status", step: 3, message: "Agente Estrat\u00e9gia analisando..." });
+
+        const { geminiModel } = await import("@/lib/gemini");
+        const { VENTURELENS_SYSTEM_PROMPT, V2_SCHEMA_PART_A, V2_SCHEMA_PART_B } = await import("@/lib/playbook");
+
+        let prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalyze this document:\n\n${textoExtraido}`;
+
+        // Append founder-provided context if available
+        if (extractedContext) {
+          try {
+            const fields = JSON.parse(extractedContext);
+            prompt += `\n\n--- CONTEXTO ADICIONAL FORNECIDO PELO FUNDADOR ---
 - Problema: ${fields.problema || "N/A"}
-- Solução: ${fields.solucao || "N/A"}
+- Solu\u00e7\u00e3o: ${fields.solucao || "N/A"}
 - ICP: ${fields.icp || "N/A"}
-- Monetização: ${fields.monetizacao || "N/A"}
+- Monetiza\u00e7\u00e3o: ${fields.monetizacao || "N/A"}
 - Vertical: ${fields.vertical || "N/A"}
-- Dependências Tecnológicas: ${fields.dependencias || "N/A"}
+- Depend\u00eancias Tecnol\u00f3gicas: ${fields.dependencias || "N/A"}
 - Mercados-Alvo: ${fields.mercados || "N/A"}
 
-Considere estas informações como verdade fornecida pelo fundador. Use-as para enriquecer sua análise.`;
-      } catch {
-        // ignore parse error
+Considere estas informa\u00e7\u00f5es como verdade fornecida pelo fundador. Use-as para enriquecer sua an\u00e1lise.`;
+          } catch {
+            // ignore parse error
+          }
+        }
+
+        if (github.context) {
+          prompt += `\n\n--- TECHNICAL DATA FROM REPOSITORY ---\n${github.context}`;
+        }
+
+        // ── Step 4: Call Gemini ──
+        sendLine(controller, encoder, { type: "status", step: 4, message: "Agente Finan\u00e7as processando..." });
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let d: any;
+        try {
+          const result = await geminiModel.generateContent(prompt);
+          const text = result.response.text();
+          d = JSON.parse(text);
+        } catch (parseError) {
+          // FALLBACK: Split into 2 calls
+          console.log("Full response failed, trying split fallback...", parseError);
+
+          sendLine(controller, encoder, { type: "status", step: 5, message: "Dividindo an\u00e1lise em partes..." });
+
+          const promptA = `${prompt}\n\n${V2_SCHEMA_PART_A}`;
+          const promptB = `${prompt}\n\n${V2_SCHEMA_PART_B}`;
+
+          const [resultA, resultB] = await Promise.all([
+            geminiModel.generateContent(promptA),
+            geminiModel.generateContent(promptB),
+          ]);
+
+          const partA = JSON.parse(resultA.response.text());
+          const partB = JSON.parse(resultB.response.text());
+          d = { ...partA, ...partB };
+        }
+
+        // ── Step 5: Save to Supabase ──
+        sendLine(controller, encoder, { type: "status", step: 6, message: "Salvando resultado..." });
+
+        // Inject github_status
+        if (github.status !== "sem_github") {
+          d.github_status = github.status;
+        }
+
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+
+        const analysis = {
+          id,
+          created_at: now,
+          created_by: createdBy,
+          project_name: d.meta?.companyName || file.name.replace(/\.[^.]+$/, ""),
+          file_name: file.name,
+          score: d.scores?.overall?.score || 0,
+          verdict: d.executiveSummary?.verdict || "WATCH",
+          recommendation: d.executiveSummary?.verdictExplanation || "",
+          mvp_features: (d.recommendations?.immediate || []).map((s: string) => ({ name: s, reason: "" })),
+          v2_features: (d.recommendations?.shortTerm || []).map((s: string) => ({ name: s, reason: "" })),
+          cut_features: (d.recommendations?.strategic || []).map((s: string) => ({ name: s, reason: "" })),
+          report_json: d,
+        };
+
+        // Save to Supabase
+        const supabase = getServiceSupabase();
+        const { error: dbError } = await supabase.from("analyses").insert({
+          id: analysis.id,
+          created_at: analysis.created_at,
+          created_by: analysis.created_by,
+          project_name: analysis.project_name,
+          file_name: analysis.file_name,
+          score: analysis.score,
+          verdict: analysis.verdict,
+          recommendation: analysis.recommendation,
+          mvp_features: analysis.mvp_features,
+          v2_features: analysis.v2_features,
+          cut_features: analysis.cut_features,
+          report_json: analysis.report_json,
+        });
+
+        if (dbError) console.error("Supabase insert error:", dbError);
+
+        // ── Final: Send result ──
+        clearInterval(heartbeat);
+        sendLine(controller, encoder, { type: "result", data: { success: true, data: analysis } });
+        controller.close();
+      } catch (error) {
+        clearInterval(heartbeat);
+        console.error("Analysis error:", error);
+        const message = error instanceof Error ? error.message : "Internal server error";
+        sendLine(controller, encoder, { type: "error", message });
+        controller.close();
       }
-    }
+    },
+  });
 
-    if (github.context) {
-      prompt += `\n\n--- TECHNICAL DATA FROM REPOSITORY ---\n${github.context}`;
-    }
-
-    // Try full call first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let d: any;
-    try {
-      const result = await geminiModel.generateContent(prompt);
-      const text = result.response.text();
-      d = JSON.parse(text);
-    } catch (parseError) {
-      // FALLBACK: Split into 2 calls
-      console.log("Full response failed, trying split fallback...", parseError);
-
-      const promptA = `${prompt}\n\n${V2_SCHEMA_PART_A}`;
-      const promptB = `${prompt}\n\n${V2_SCHEMA_PART_B}`;
-
-      const [resultA, resultB] = await Promise.all([
-        geminiModel.generateContent(promptA),
-        geminiModel.generateContent(promptB),
-      ]);
-
-      const partA = JSON.parse(resultA.response.text());
-      const partB = JSON.parse(resultB.response.text());
-      d = { ...partA, ...partB };
-    }
-
-    // Inject github_status
-    if (github.status !== "sem_github") {
-      d.github_status = github.status;
-    }
-
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    const analysis = {
-      id,
-      created_at: now,
-      created_by: createdBy,
-      project_name: d.meta?.companyName || file.name.replace(/\.[^.]+$/, ""),
-      file_name: file.name,
-      score: d.scores?.overall?.score || 0,
-      verdict: d.executiveSummary?.verdict || "WATCH",
-      recommendation: d.executiveSummary?.verdictExplanation || "",
-      mvp_features: (d.recommendations?.immediate || []).map((s: string) => ({ name: s, reason: "" })),
-      v2_features: (d.recommendations?.shortTerm || []).map((s: string) => ({ name: s, reason: "" })),
-      cut_features: (d.recommendations?.strategic || []).map((s: string) => ({ name: s, reason: "" })),
-      report_json: d,
-    };
-
-    // Save to Supabase
-    const supabase = getServiceSupabase();
-    const { error: dbError } = await supabase.from("analyses").insert({
-      id: analysis.id,
-      created_at: analysis.created_at,
-      created_by: analysis.created_by,
-      project_name: analysis.project_name,
-      file_name: analysis.file_name,
-      score: analysis.score,
-      verdict: analysis.verdict,
-      recommendation: analysis.recommendation,
-      mvp_features: analysis.mvp_features,
-      v2_features: analysis.v2_features,
-      cut_features: analysis.cut_features,
-      report_json: analysis.report_json,
-    });
-
-    if (dbError) console.error("Supabase insert error:", dbError);
-
-    return NextResponse.json({ success: true, data: analysis });
-  } catch (error) {
-    console.error("Analysis error:", error);
-    const message = error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { AnalysisResult, AnalysisResponse } from "@/types/analysis";
+import { useState, useEffect, useCallback } from "react";
+import { AnalysisResult } from "@/types/analysis";
 import Link from "next/link";
 
 // V2 Components
@@ -128,13 +128,48 @@ export default function Home() {
   // ── PDF export state ──
   const [showPdfDownload, setShowPdfDownload] = useState(false);
 
-  // ── Progress timer ref ──
-  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
-
   // Scroll to top on screen change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [screen]);
+
+  // ── Helper: Read streaming NDJSON response ──
+  async function readStream(
+    res: Response,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onMessage: (msg: any) => void,
+  ) {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || ""; // keep incomplete last line in buffer
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          onMessage(JSON.parse(line));
+        } catch {
+          // not valid JSON, skip
+        }
+      }
+    }
+
+    // Process remaining buffer
+    if (buffer.trim()) {
+      try {
+        onMessage(JSON.parse(buffer));
+      } catch {
+        // skip
+      }
+    }
+  }
 
   // ── Go to confirm screen (extract fields from document first) ──
   async function goToConfirm() {
@@ -162,36 +197,41 @@ export default function Home() {
         console.log(`[extract] Sending text: ${ideaText.trim().substring(0, 80)}...`);
       }
 
-      console.log("[extract] Calling /api/extract...");
+      console.log("[extract] Calling /api/extract (streaming)...");
       const res = await fetch("/api/extract", {
         method: "POST",
         body: formData,
       });
 
-      console.log("[extract] Response status:", res.status);
-
-      if (res.ok) {
-        const data = await res.json();
-        console.log("[extract] Response data:", JSON.stringify(data).substring(0, 300));
-        if (data.fields) {
-          const NOT_IDENTIFIED = "Não identificado no documento";
-          setConfirmFields((prev) => ({
-            problema: (data.fields.problema && data.fields.problema !== NOT_IDENTIFIED) ? data.fields.problema : prev.problema || "",
-            solucao: (data.fields.solucao && data.fields.solucao !== NOT_IDENTIFIED) ? data.fields.solucao : prev.solucao || "",
-            icp: (data.fields.icp && data.fields.icp !== NOT_IDENTIFIED) ? data.fields.icp : prev.icp || "",
-            monetizacao: (data.fields.monetizacao && data.fields.monetizacao !== NOT_IDENTIFIED) ? data.fields.monetizacao : prev.monetizacao || "",
-            vertical: (data.fields.vertical && data.fields.vertical !== NOT_IDENTIFIED) ? data.fields.vertical : prev.vertical || "",
-            dependencias: (data.fields.dependenciasTech && data.fields.dependenciasTech !== NOT_IDENTIFIED) ? data.fields.dependenciasTech : prev.dependencias || "",
-            mercados: (data.fields.mercadosAlvo && data.fields.mercadosAlvo !== NOT_IDENTIFIED) ? data.fields.mercadosAlvo : prev.mercados || marketLabel(targetMarket),
-          }));
-        }
-      } else {
-        // Extraction failed — leave fields as-is, user can fill manually
-        const errBody = await res.text();
-        console.warn("[extract] API error:", res.status, errBody);
+      if (!res.body) {
+        console.warn("[extract] No response body");
+        return;
       }
+
+      const NOT_IDENTIFIED = "N\u00e3o identificado no documento";
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await readStream(res, (msg: any) => {
+        if (msg.type === "result" && msg.fields) {
+          console.log("[extract] Got fields:", Object.keys(msg.fields));
+          const f = msg.fields;
+          setConfirmFields((prev) => ({
+            problema: (f.problema && f.problema !== NOT_IDENTIFIED) ? f.problema : prev.problema || "",
+            solucao: (f.solucao && f.solucao !== NOT_IDENTIFIED) ? f.solucao : prev.solucao || "",
+            icp: (f.icp && f.icp !== NOT_IDENTIFIED) ? f.icp : prev.icp || "",
+            monetizacao: (f.monetizacao && f.monetizacao !== NOT_IDENTIFIED) ? f.monetizacao : prev.monetizacao || "",
+            vertical: (f.vertical && f.vertical !== NOT_IDENTIFIED) ? f.vertical : prev.vertical || "",
+            dependencias: (f.dependenciasTech && f.dependenciasTech !== NOT_IDENTIFIED) ? f.dependenciasTech : prev.dependencias || "",
+            mercados: (f.mercadosAlvo && f.mercadosAlvo !== NOT_IDENTIFIED) ? f.mercadosAlvo : prev.mercados || marketLabel(targetMarket),
+          }));
+        } else if (msg.type === "error") {
+          console.warn("[extract] Stream error:", msg.message);
+        } else if (msg.type === "status") {
+          console.log("[extract] Status:", msg.message);
+        }
+      });
     } catch (err) {
-      // Network error or timeout — don't block the flow
+      // Network error — don't block the flow
       console.warn("[extract] Fetch error:", err);
     } finally {
       setIsExtracting(false);
@@ -203,7 +243,7 @@ export default function Home() {
     setConfirmFields((prev) => ({ ...prev, [field]: value }));
   }
 
-  // ── Analysis handler ──
+  // ── Analysis handler (reads streaming NDJSON from /api/analyze) ──
   const handleAnalyze = useCallback(async () => {
     if (!selectedFile) return;
     setIsLoading(true);
@@ -211,15 +251,6 @@ export default function Home() {
     setResult(null);
     setProgressStep(0);
     setScreen("progress");
-
-    // Start progress animation
-    let step = 0;
-    progressTimerRef.current = setInterval(() => {
-      step++;
-      if (step <= 6) {
-        setProgressStep(step);
-      }
-    }, 4000);
 
     try {
       const formData = new FormData();
@@ -242,31 +273,50 @@ export default function Home() {
         formData.append("extractedContext", JSON.stringify(confirmFields));
       }
 
+      console.log("[analyze] Calling /api/analyze (streaming)...");
       const res = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
       });
-      const json: AnalysisResponse = await res.json();
 
-      if (!json.success || !json.data) {
-        throw new Error(json.error ?? "Erro na análise");
+      if (!res.body) {
+        throw new Error("Sem resposta do servidor");
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let analysisResult: any = null;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await readStream(res, (msg: any) => {
+        if (msg.type === "status") {
+          console.log(`[analyze] Step ${msg.step}: ${msg.message}`);
+          if (msg.step) {
+            setProgressStep(msg.step);
+          }
+        } else if (msg.type === "result") {
+          console.log("[analyze] Result received!");
+          analysisResult = msg.data;
+        } else if (msg.type === "error") {
+          console.error("[analyze] Stream error:", msg.message);
+          throw new Error(msg.message);
+        } else if (msg.type === "heartbeat") {
+          // keep alive, do nothing
+        }
+      });
+
+      if (!analysisResult || !analysisResult.success || !analysisResult.data) {
+        throw new Error(analysisResult?.error ?? "Nenhum resultado recebido");
       }
 
       // Complete progress and show dashboard
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-      }
       setProgressStep(7); // All done
-      setResult(json.data);
+      setResult(analysisResult.data);
 
       // Short delay then show dashboard
       setTimeout(() => {
         setScreen("dashboard");
       }, 800);
     } catch (err) {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-      }
       setError(err instanceof Error ? err.message : "Algo deu errado");
       setScreen("input");
     } finally {
@@ -280,15 +330,6 @@ export default function Home() {
     targetMarket,
     confirmFields,
   ]);
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-      }
-    };
-  }, []);
 
   // ── Navigation handlers ──
   function goToHero() {
