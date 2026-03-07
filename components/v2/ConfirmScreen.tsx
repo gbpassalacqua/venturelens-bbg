@@ -15,6 +15,7 @@ interface ConfirmScreenProps {
   onConfirm: () => void;
   onBack: () => void;
   isLoading: boolean;
+  isExtracting?: boolean;
 }
 
 const FIELDS: { key: string; label: string; icon: string }[] = [
@@ -26,6 +27,8 @@ const FIELDS: { key: string; label: string; icon: string }[] = [
   { key: "dependencias", label: "Depend\u00EAncias Tecnol\u00F3gicas", icon: "\u2699\uFE0F" },
   { key: "mercados", label: "Mercados-Alvo", icon: "\u{1F30D}" },
 ];
+
+const NOT_IDENTIFIED = "N\u00e3o identificado no documento";
 
 export default function ConfirmScreen({
   problema,
@@ -39,6 +42,7 @@ export default function ConfirmScreen({
   onConfirm,
   onBack,
   isLoading,
+  isExtracting = false,
 }: ConfirmScreenProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
 
@@ -51,6 +55,8 @@ export default function ConfirmScreen({
     dependencias,
     mercados,
   };
+
+  const isEmpty = (val: string) => !val || val === NOT_IDENTIFIED;
 
   return (
     <div>
@@ -69,19 +75,29 @@ export default function ConfirmScreen({
         {/* Page header */}
         <div className="mb-10">
           <h2 className="font-display text-[2rem] font-bold tracking-[-0.02em]">
-            Confirme os dados extra&iacute;dos
+            {"Confirme os dados extra\u00eddos"}
           </h2>
           <p className="text-[var(--vl-text2)] mt-1.5">
-            Revise e edite os campos abaixo antes de iniciar a an&aacute;lise
-            completa.
+            {"Revise e edite os campos abaixo antes de iniciar a an\u00e1lise completa."}
           </p>
         </div>
+
+        {/* Extracting loading state */}
+        {isExtracting && (
+          <div className="flex items-center gap-3 p-4 mb-5 rounded-xl border border-[var(--vl-gold)]/30 bg-[var(--vl-gold)]/5">
+            <span className="inline-block w-5 h-5 border-2 border-[var(--vl-gold)] border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-[var(--vl-gold)]">
+              {"Extraindo dados do documento com IA..."}
+            </span>
+          </div>
+        )}
 
         {/* Fields */}
         <div className="space-y-3">
           {FIELDS.map(({ key, label, icon }) => {
             const isEditing = editingField === key;
             const value = fieldValues[key] || "";
+            const fieldEmpty = isEmpty(value);
 
             return (
               <div
@@ -113,19 +129,20 @@ export default function ConfirmScreen({
 
                 {isEditing ? (
                   <textarea
-                    value={value}
+                    value={value === NOT_IDENTIFIED ? "" : value}
                     onChange={(e) => onFieldChange(key, e.target.value)}
                     className="w-full px-4 py-2.5 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-gold)]/30 text-sm text-[var(--vl-text)] placeholder:text-[var(--vl-text3)] focus:outline-none focus:border-[var(--vl-gold)]/50 transition-colors resize-none"
                     rows={3}
                     autoFocus
+                    placeholder={`Descreva ${label.toLowerCase()}...`}
                   />
+                ) : fieldEmpty ? (
+                  <p className="text-[.85rem] text-[var(--vl-text3)] italic leading-relaxed">
+                    {`${NOT_IDENTIFIED} \u2014 clique em Editar`}
+                  </p>
                 ) : (
-                  <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
-                    {value || (
-                      <span className="italic text-[var(--vl-text3)]">
-                        Clique em &ldquo;Editar&rdquo; para preencher
-                      </span>
-                    )}
+                  <p className="text-[.88rem] text-[var(--vl-text2)] leading-relaxed">
+                    {value}
                   </p>
                 )}
               </div>
@@ -139,7 +156,7 @@ export default function ConfirmScreen({
             onClick={onBack}
             className="text-sm text-[var(--vl-text2)] hover:text-[var(--vl-text)] transition-colors py-2 px-4 rounded-lg hover:bg-[var(--vl-bg2)]"
           >
-            &larr; Voltar
+            {"\u2190 Voltar"}
           </button>
           <button
             onClick={onConfirm}

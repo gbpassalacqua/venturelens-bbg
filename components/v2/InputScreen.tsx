@@ -10,6 +10,7 @@ interface InputScreenProps {
   onBack: () => void;
   selectedFile: File | null;
   isLoading: boolean;
+  isExtracting?: boolean;
   // Idea text
   ideaText: string;
   onIdeaTextChange: (text: string) => void;
@@ -39,6 +40,7 @@ export default function InputScreen({
   onBack,
   selectedFile,
   isLoading,
+  isExtracting = false,
   ideaText,
   onIdeaTextChange,
   productDescription,
@@ -49,6 +51,8 @@ export default function InputScreen({
   users,
   onUserChange,
 }: InputScreenProps) {
+  const buttonDisabled = !selectedFile || isLoading || isExtracting;
+
   return (
     <div>
       {/* FlowBar */}
@@ -69,7 +73,7 @@ export default function InputScreen({
             Descreva sua startup
           </h2>
           <p className="text-[var(--vl-text2)] mt-1.5">
-            Envie seu pitch deck e descreva sua ideia para an&aacute;lise.
+            {"Envie seu pitch deck e descreva sua ideia para an\u00e1lise."}
           </p>
         </div>
 
@@ -99,26 +103,25 @@ export default function InputScreen({
         {/* ── Descrição da Ideia ── */}
         <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-5 mb-4">
           <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-            {"\u{1F4DD}"} DESCRI&Ccedil;&Atilde;O DA IDEIA
+            {"\u{1F4DD} DESCRI\u00c7\u00c3O DA IDEIA"}
             <span className="flex-1 h-px bg-[var(--vl-border)]" />
           </div>
           <textarea
-            placeholder="Descreva sua ideia de startup, o problema que resolve, o p&#250;blico-alvo e como pretende monetizar..."
+            placeholder={"Descreva sua ideia de startup, o problema que resolve, o p\u00fablico-alvo e como pretende monetizar..."}
             value={ideaText}
             onChange={(e) => onIdeaTextChange(e.target.value)}
             className="w-full px-4 py-3 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-border)] text-sm text-[var(--vl-text)] placeholder:text-[var(--vl-text3)] focus:outline-none focus:border-[var(--vl-gold)]/50 transition-colors resize-none"
             style={{ minHeight: "140px" }}
           />
           <p className="text-[10px] text-[var(--vl-text3)] mt-1.5">
-            Quanto mais detalhes, melhor ser&aacute; a an&aacute;lise dos 4
-            agentes de IA.
+            {"Quanto mais detalhes, melhor ser\u00e1 a an\u00e1lise dos 4 agentes de IA."}
           </p>
         </div>
 
         {/* ── Pitch Deck (upload) ── */}
         <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-5 mb-4">
           <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-            {"\u{1F4C4}"} PITCH DECK
+            {"\u{1F4C4} PITCH DECK"}
             <span className="flex-1 h-px bg-[var(--vl-border)]" />
           </div>
           <UploadZone onFileSelected={onFileSelected} isLoading={isLoading} />
@@ -127,7 +130,7 @@ export default function InputScreen({
         {/* ── Produto (optional) ── */}
         <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-5 mb-4">
           <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-            {"\u{1F4BB}"} PRODUTO
+            {"\u{1F4BB} PRODUTO"}
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--vl-bg2)] text-[var(--vl-text3)] normal-case tracking-normal font-normal">
               Opcional
             </span>
@@ -135,21 +138,20 @@ export default function InputScreen({
           </div>
           <input
             type="text"
-            placeholder="URL do produto ou breve descri&#231;&#227;o do produto"
+            placeholder={"URL do produto ou breve descri\u00e7\u00e3o do produto"}
             value={productDescription}
             onChange={(e) => onProductDescriptionChange(e.target.value)}
             className="w-full px-4 py-2.5 rounded-lg bg-[var(--vl-bg2)] border border-[var(--vl-border)] text-sm text-[var(--vl-text)] placeholder:text-[var(--vl-text3)] focus:outline-none focus:border-[var(--vl-gold)]/50 transition-colors"
           />
           <p className="text-[10px] text-[var(--vl-text3)] mt-1.5">
-            URL ou descri&ccedil;&atilde;o do produto para enriquecer a
-            an&aacute;lise
+            {"URL ou descri\u00e7\u00e3o do produto para enriquecer a an\u00e1lise"}
           </p>
         </div>
 
         {/* ── Mercados-Alvo ── */}
         <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-5 mb-4">
           <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-            {"\u{1F30D}"} MERCADOS-ALVO
+            {"\u{1F30D} MERCADOS-ALVO"}
             <span className="flex-1 h-px bg-[var(--vl-border)]" />
           </div>
           <div className="flex gap-2">
@@ -175,14 +177,21 @@ export default function InputScreen({
             onClick={onBack}
             className="text-sm text-[var(--vl-text2)] hover:text-[var(--vl-text)] transition-colors py-2 px-4 rounded-lg hover:bg-[var(--vl-bg2)]"
           >
-            &larr; Voltar
+            {"\u2190 Voltar"}
           </button>
           <button
             onClick={onNext}
-            disabled={!selectedFile || isLoading}
+            disabled={buttonDisabled}
             className="py-2.5 px-7 rounded-lg text-[.95rem] font-semibold bg-[var(--vl-gold)] text-[var(--vl-bg)] hover:bg-[var(--vl-gold2)] hover:-translate-y-px hover:shadow-[0_8px_24px_rgba(240,165,0,.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
-            Pr&oacute;ximo &rarr;
+            {isExtracting ? (
+              <span className="flex items-center gap-2">
+                <span className="inline-block w-4 h-4 border-2 border-[var(--vl-bg)] border-t-transparent rounded-full animate-spin" />
+                Extraindo dados...
+              </span>
+            ) : (
+              "Analisar Minha Ideia \u2192"
+            )}
           </button>
         </div>
       </div>

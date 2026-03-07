@@ -122,6 +122,9 @@ export default function Home() {
   // ── Confirm fields ──
   const [confirmFields, setConfirmFields] = useState<ConfirmFields>(EMPTY_CONFIRM_FIELDS);
 
+  // ── Extraction state ──
+  const [isExtracting, setIsExtracting] = useState(false);
+
   // ── PDF export state ──
   const [showPdfDownload, setShowPdfDownload] = useState(false);
 
@@ -133,14 +136,58 @@ export default function Home() {
     window.scrollTo(0, 0);
   }, [screen]);
 
-  // ── Go to confirm screen (pre-populate fields) ──
-  function goToConfirm() {
+  // ── Go to confirm screen (extract fields from document first) ──
+  async function goToConfirm() {
+    // Pre-populate with what we already know
     setConfirmFields({
       ...EMPTY_CONFIRM_FIELDS,
       problema: ideaText,
       mercados: marketLabel(targetMarket),
     });
+
+    // Navigate immediately, show extracting state
     setScreen("confirm");
+
+    // Attempt AI extraction from the uploaded file or idea text
+    if (!selectedFile && !ideaText.trim()) return;
+
+    setIsExtracting(true);
+    try {
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append("file", selectedFile);
+      } else if (ideaText.trim()) {
+        formData.append("text", ideaText.trim());
+      }
+
+      const res = await fetch("/api/extract", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.fields) {
+          setConfirmFields((prev) => ({
+            problema: data.fields.problema || prev.problema || "",
+            solucao: data.fields.solucao || prev.solucao || "",
+            icp: data.fields.icp || prev.icp || "",
+            monetizacao: data.fields.monetizacao || prev.monetizacao || "",
+            vertical: data.fields.vertical || prev.vertical || "",
+            dependencias: data.fields.dependenciasTech || prev.dependencias || "",
+            mercados: data.fields.mercadosAlvo || prev.mercados || marketLabel(targetMarket),
+          }));
+        }
+      } else {
+        // Extraction failed — leave fields as-is, user can fill manually
+        console.warn("Extract API returned error:", res.status);
+      }
+    } catch (err) {
+      // Network error — don't block the flow
+      console.warn("Extract failed:", err);
+    } finally {
+      setIsExtracting(false);
+    }
   }
 
   // ── Confirm field change handler ──
@@ -181,6 +228,12 @@ export default function Home() {
       }
       formData.append("targetMarket", targetMarket);
 
+      // Send extracted/edited context from Confirm screen
+      const hasContent = Object.values(confirmFields).some((v) => v.trim().length > 0);
+      if (hasContent) {
+        formData.append("extractedContext", JSON.stringify(confirmFields));
+      }
+
       const res = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
@@ -217,6 +270,7 @@ export default function Home() {
     ideaText,
     productDescription,
     targetMarket,
+    confirmFields,
   ]);
 
   // Cleanup timer on unmount
@@ -249,6 +303,7 @@ export default function Home() {
     setProductDescription("");
     setTargetMarket("ambos");
     setConfirmFields(EMPTY_CONFIRM_FIELDS);
+    setIsExtracting(false);
     setScreen("input");
   }
 
@@ -298,6 +353,7 @@ export default function Home() {
               onBack={goToHero}
               selectedFile={selectedFile}
               isLoading={isLoading}
+              isExtracting={isExtracting}
               ideaText={ideaText}
               onIdeaTextChange={setIdeaText}
               productDescription={productDescription}
@@ -334,6 +390,7 @@ export default function Home() {
             onConfirm={handleAnalyze}
             onBack={goToInput}
             isLoading={isLoading}
+            isExtracting={isExtracting}
           />
         )}
 

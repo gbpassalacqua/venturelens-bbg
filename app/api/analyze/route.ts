@@ -1,31 +1,7 @@
 import { NextResponse } from "next/server";
-import { extractText as extractPdfText } from "unpdf";
-import mammoth from "mammoth";
 import { getServiceSupabase } from "@/lib/supabase";
+import { extractTextFromFile } from "@/lib/file-utils";
 import type { GithubStatus } from "@/types/analysis";
-
-// ------- File text extraction -------
-async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
-  if (mimeType === "application/pdf") {
-    const { text } = await extractPdfText(new Uint8Array(buffer), { mergePages: true });
-    return text as string;
-  }
-
-  if (
-    mimeType ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    mimeType === "application/msword"
-  ) {
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value;
-  }
-
-  if (mimeType === "text/plain") {
-    return buffer.toString("utf-8");
-  }
-
-  throw new Error(`Unsupported file type: ${mimeType}`);
-}
 
 // ------- GitHub helpers -------
 interface GithubResult {
@@ -821,12 +797,11 @@ export async function POST(request: Request) {
     const createdBy = (formData.get("created_by") as string) || "unknown";
     const githubUrl = (formData.get("githubUrl") as string) || null;
     const packageJsonFile = (formData.get("packageJsonFile") as File | null) || null;
+    const extractedContext = (formData.get("extractedContext") as string) || null;
 
     if (!file) return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const textoExtraido = await extractText(buffer, file.type);
+    const textoExtraido = await extractTextFromFile(file);
 
     if (!textoExtraido || textoExtraido.trim().length < 50) {
       return NextResponse.json({ success: false, error: "Could not extract enough text from file" }, { status: 400 });
@@ -838,6 +813,25 @@ export async function POST(request: Request) {
     const { VENTURELENS_SYSTEM_PROMPT, V2_SCHEMA_PART_A, V2_SCHEMA_PART_B } = await import("@/lib/playbook");
 
     let prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalyze this document:\n\n${textoExtraido}`;
+
+    // Append founder-provided context if available
+    if (extractedContext) {
+      try {
+        const fields = JSON.parse(extractedContext);
+        prompt += `\n\n--- CONTEXTO ADICIONAL FORNECIDO PELO FUNDADOR ---
+- Problema: ${fields.problema || "N/A"}
+- Solução: ${fields.solucao || "N/A"}
+- ICP: ${fields.icp || "N/A"}
+- Monetização: ${fields.monetizacao || "N/A"}
+- Vertical: ${fields.vertical || "N/A"}
+- Dependências Tecnológicas: ${fields.dependencias || "N/A"}
+- Mercados-Alvo: ${fields.mercados || "N/A"}
+
+Considere estas informações como verdade fornecida pelo fundador. Use-as para enriquecer sua análise.`;
+      } catch {
+        // ignore parse error
+      }
+    }
 
     if (github.context) {
       prompt += `\n\n--- TECHNICAL DATA FROM REPOSITORY ---\n${github.context}`;
