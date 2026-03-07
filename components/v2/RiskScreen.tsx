@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { V2ReportJson, V2RiskItem, V2TechnicalRisk } from "@/types/analysis";
+import { splitRiskText } from "./helpers";
 
 interface RiskScreenProps {
   report: V2ReportJson;
@@ -96,13 +97,19 @@ function Badge({ label, bg, color }: { label: string; bg: string; color: string 
 function StrategyRiskRow({ item }: { item: V2RiskItem }) {
   const prob = probBadge(item.probability);
   const imp = impactBadge(item.impact);
+  const { title, description } = splitRiskText(item.risk);
 
   return (
     <div className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-4 mb-2.5">
       <div className="grid grid-cols-[1fr_auto_auto] gap-4 items-start">
-        {/* Risk name */}
+        {/* Risk name + description */}
         <div>
-          <p className="text-[.88rem] font-semibold mb-1">{item.risk}</p>
+          <p className="text-[.88rem] font-semibold mb-1">{title}</p>
+          {description && (
+            <p className="text-xs text-[var(--vl-text2)] leading-relaxed">
+              {description}
+            </p>
+          )}
         </div>
 
         {/* Probability */}
@@ -118,7 +125,7 @@ function StrategyRiskRow({ item }: { item: V2RiskItem }) {
           <div className="bg-[rgba(255,255,255,.02)] rounded-md p-2.5">
             <p className="text-xs text-[var(--vl-text2)]">
               <span className="font-bold text-[var(--vl-text)]">
-                Mitiga&ccedil;&atilde;o:{" "}
+                {"Mitiga\u00e7\u00e3o: "}
               </span>
               {item.mitigation}
             </p>
@@ -133,13 +140,19 @@ function StrategyRiskRow({ item }: { item: V2RiskItem }) {
 
 function TechnicalRiskRow({ item }: { item: V2TechnicalRisk }) {
   const sev = severityBadge(item.severity);
+  const { title, description } = splitRiskText(item.risk);
 
   return (
     <div className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-4 mb-2.5">
       <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
-        {/* Risk name */}
+        {/* Risk name + description */}
         <div>
-          <p className="text-[.88rem] font-semibold mb-1">{item.risk}</p>
+          <p className="text-[.88rem] font-semibold mb-1">{title}</p>
+          {description && (
+            <p className="text-xs text-[var(--vl-text2)] leading-relaxed">
+              {description}
+            </p>
+          )}
         </div>
 
         {/* Severity */}
@@ -152,7 +165,7 @@ function TechnicalRiskRow({ item }: { item: V2TechnicalRisk }) {
           <div className="bg-[rgba(255,255,255,.02)] rounded-md p-2.5">
             <p className="text-xs text-[var(--vl-text2)]">
               <span className="font-bold text-[var(--vl-text)]">
-                Mitiga&ccedil;&atilde;o:{" "}
+                {"Mitiga\u00e7\u00e3o: "}
               </span>
               {item.mitigation}
             </p>
@@ -174,7 +187,7 @@ export default function RiskScreen({ report }: RiskScreenProps) {
     <div className="max-w-[1200px] mx-auto p-10">
       {/* ── Page Header ── */}
       <h2 className="font-display text-[2rem] font-bold">
-        An&aacute;lise de Riscos
+        {"An\u00e1lise de Riscos"}
       </h2>
       <p className="text-[var(--vl-text2)] mt-1.5">
         {totalRisks} riscos identificados
@@ -183,8 +196,9 @@ export default function RiskScreen({ report }: RiskScreenProps) {
       {/* ── Strategy Risks ── */}
       {strategyRisks.length > 0 && (
         <>
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 mt-6">
-            RISCOS ESTRAT&Eacute;GICOS
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 mt-6 flex items-center gap-2">
+            {"RISCOS ESTRAT\u00c9GICOS"}
+            <span className="flex-1 h-px bg-[var(--vl-border)]" />
           </h3>
 
           {strategyRisks.map((risk, i) => (
@@ -196,8 +210,9 @@ export default function RiskScreen({ report }: RiskScreenProps) {
       {/* ── Technical Risks ── */}
       {technicalRisks.length > 0 && (
         <>
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 mt-6">
-            RISCOS T&Eacute;CNICOS
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 mt-6 flex items-center gap-2">
+            {"RISCOS T\u00c9CNICOS"}
+            <span className="flex-1 h-px bg-[var(--vl-border)]" />
           </h3>
 
           {technicalRisks.map((risk, i) => (
@@ -210,7 +225,7 @@ export default function RiskScreen({ report }: RiskScreenProps) {
       {totalRisks === 0 && (
         <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-8 text-center mt-6">
           <p className="text-sm text-[var(--vl-text3)]">
-            Nenhum risco identificado na an&aacute;lise.
+            {"Nenhum risco identificado na an\u00e1lise."}
           </p>
         </div>
       )}

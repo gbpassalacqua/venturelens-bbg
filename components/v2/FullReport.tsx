@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { V2ReportJson, Verdict } from "@/types/analysis";
+import { extractShortValue } from "./helpers";
 
 /* ── Props ─────────────────────────────────────────────────────────── */
 interface FullReportProps {
@@ -60,10 +61,11 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
 
 /* ── Metric box ────────────────────────────────────────────────────── */
 function MetricBox({ label, value }: { label: string; value: string }) {
+  const shortVal = extractShortValue(value);
   return (
-    <div className="bg-[var(--vl-bg2)] rounded-lg p-3">
+    <div className="bg-[var(--vl-bg2)] rounded-lg p-3" title={value}>
       <div className="text-xs text-[var(--vl-text3)] uppercase tracking-wider mb-1">{label}</div>
-      <div className="font-mono text-sm text-[var(--vl-gold2)]">{value}</div>
+      <div className="font-mono text-sm text-[var(--vl-gold2)]">{shortVal}</div>
     </div>
   );
 }
@@ -80,7 +82,7 @@ export default function FullReport({ report, onExportPDF }: FullReportProps) {
       <div className="flex justify-between items-start mb-10">
         <div>
           <h2 className="font-display text-[2rem] font-bold">
-            Relatório Completo de Validação
+            {"Relat\u00f3rio Completo de Valida\u00e7\u00e3o"}
           </h2>
           <p className="text-[var(--vl-text2)] mt-1.5">
             VentureLens AI · {report.meta.companyName} · {report.meta.industry} · {report.meta.stage}
@@ -244,10 +246,10 @@ export default function FullReport({ report, onExportPDF }: FullReportProps) {
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <MetricBox label="Revenue" value={report.financialAnalysis.currentMetrics.revenue} />
+          <MetricBox label="Receita" value={report.financialAnalysis.currentMetrics.revenue} />
           <MetricBox label="Burn Rate" value={report.financialAnalysis.currentMetrics.burnRate} />
           <MetricBox label="Runway" value={report.financialAnalysis.currentMetrics.runway} />
-          <MetricBox label="Gross Margin" value={report.financialAnalysis.currentMetrics.grossMargin} />
+          <MetricBox label="Margem Bruta" value={report.financialAnalysis.currentMetrics.grossMargin} />
           <MetricBox label="CAC" value={report.financialAnalysis.currentMetrics.cac} />
           <MetricBox label="LTV" value={report.financialAnalysis.currentMetrics.ltv} />
           <MetricBox label="LTV:CAC" value={report.financialAnalysis.currentMetrics.ltvCacRatio} />

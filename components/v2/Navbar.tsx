@@ -75,7 +75,7 @@ export default function Navbar({
             onClick={onNewAnalysis}
             className="px-[18px] py-[7px] rounded-md text-xs font-semibold border border-[var(--vl-gold)] bg-[var(--vl-gold)] text-[var(--vl-bg)] hover:bg-[var(--vl-gold2)] transition-colors cursor-pointer"
           >
-            Come\u00e7ar Gr\u00e1tis
+            {"Come\u00e7ar Gr\u00e1tis"}
           </button>
         </div>
       </nav>
@@ -131,7 +131,7 @@ export default function Navbar({
           onClick={onNewAnalysis}
           className="px-[18px] py-[7px] rounded-md text-xs font-semibold border border-[var(--vl-border2)] bg-transparent text-[var(--vl-text2)] hover:border-[var(--vl-gold)] hover:text-[var(--vl-gold)] transition-colors cursor-pointer"
         >
-          + Nova An\u00e1lise
+          {"+ Nova An\u00e1lise"}
         </button>
 
         <button

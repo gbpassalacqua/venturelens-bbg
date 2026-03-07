@@ -18,6 +18,7 @@ import FullReport from "@/components/v2/FullReport";
 import PersonaScreen from "@/components/v2/PersonaScreen";
 import RoadmapScreen from "@/components/v2/RoadmapScreen";
 import PricingScreen from "@/components/v2/PricingScreen";
+import TAMCards from "@/components/v2/TAMCards";
 
 // PDF
 import ReportPDFDownload from "@/components/ReportPDFDownload";
@@ -355,88 +356,104 @@ export default function Home() {
           <div className="max-w-[1200px] mx-auto p-10">
             <div className="mb-10">
               <h2 className="font-display text-[2rem] font-bold tracking-[-0.02em]">
-                Intelig&ecirc;ncia de Mercado
+                {"Intelig\u00eancia de Mercado"}
               </h2>
               <p className="text-[var(--vl-text2)] mt-1.5">
-                TAM / SAM / SOM &middot; Tend&ecirc;ncias de demanda &middot;
-                Velocidade de investimento
+                {"TAM / SAM / SOM \u00b7 Tend\u00eancias de demanda \u00b7 Velocidade de investimento"}
               </p>
             </div>
 
+            {/* TAM / SAM / SOM — using shared TAMCards component */}
             <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
               <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
                 TAMANHO DE MERCADO
                 <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-                {[
-                  {
-                    label: "TAM — Total",
-                    val:
-                      result.report_json.strategyAnalysis.marketSize.tam,
-                    color: "var(--vl-gold)",
-                    bar: "var(--vl-gold)",
-                  },
-                  {
-                    label: "SAM",
-                    val:
-                      result.report_json.strategyAnalysis.marketSize.sam,
-                    color: "var(--vl-blue2)",
-                    bar: "var(--vl-blue)",
-                  },
-                  {
-                    label: "SOM",
-                    val:
-                      result.report_json.strategyAnalysis.marketSize.som,
-                    color: "var(--vl-green)",
-                    bar: "var(--vl-green)",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-5 relative overflow-hidden"
-                  >
-                    <div className="text-[.7rem] uppercase tracking-widest text-[var(--vl-text3)] mb-2">
-                      {item.label}
-                    </div>
-                    <div
-                      className="font-display text-[2rem] font-bold"
-                      style={{ color: item.color }}
-                    >
-                      {item.val}
-                    </div>
-                    <div
-                      className="absolute bottom-0 left-0 right-0 h-[3px]"
-                      style={{ background: item.bar }}
-                    />
-                  </div>
-                ))}
-              </div>
+              <TAMCards
+                tam={result.report_json.strategyAnalysis.marketSize.tam}
+                sam={result.report_json.strategyAnalysis.marketSize.sam}
+                som={result.report_json.strategyAnalysis.marketSize.som}
+              />
             </div>
 
+            {/* Credibility Assessment */}
             <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
               <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-                AVALIA&Ccedil;&Atilde;O DE CREDIBILIDADE
+                {"AVALIA\u00c7\u00c3O DE CREDIBILIDADE"}
                 <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
               <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
-                {
-                  result.report_json.strategyAnalysis.marketSize
-                    .credibilityAssessment
-                }
+                {result.report_json.strategyAnalysis.marketSize.credibilityAssessment}
               </p>
             </div>
 
+            {/* Methodology Card */}
+            <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
+                METODOLOGIA
+                <span className="flex-1 h-px bg-[var(--vl-border)]" />
+              </div>
+              <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
+                {"An\u00e1lise baseada em dados p\u00fablicos de mercado, benchmarks de ind\u00fastria e compara\u00e7\u00e3o com empresas similares. Os valores de TAM/SAM/SOM foram estimados com base na vertical de atua\u00e7\u00e3o, modelo de neg\u00f3cio e mercados-alvo identificados no pitch deck."}
+              </p>
+            </div>
+
+            {/* Funding Velocity */}
+            <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
+                VELOCIDADE DE INVESTIMENTO
+                <span className="flex-1 h-px bg-[var(--vl-border)]" />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left py-2.5 px-3.5 bg-[var(--vl-bg2)] border-b-2 border-[var(--vl-border2)] text-[var(--vl-text2)] text-[.72rem] uppercase tracking-wider font-semibold">
+                        {"M\u00e9trica"}
+                      </th>
+                      <th className="text-left py-2.5 px-3.5 bg-[var(--vl-bg2)] border-b-2 border-[var(--vl-border2)] text-[var(--vl-text2)] text-[.72rem] uppercase tracking-wider font-semibold">
+                        Valor
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-[var(--vl-border)]">
+                      <td className="py-3 px-3.5 text-[var(--vl-text)]">Ask de Funding</td>
+                      <td className="py-3 px-3.5 font-mono text-[var(--vl-gold2)]">
+                        {result.report_json.meta.fundingAsk || "\u2014"}
+                      </td>
+                    </tr>
+                    <tr className="border-b border-[var(--vl-border)]">
+                      <td className="py-3 px-3.5 text-[var(--vl-text)]">{"Valua\u00e7\u00e3o Impl\u00edcita"}</td>
+                      <td className="py-3 px-3.5 font-mono text-[var(--vl-gold2)]">
+                        {result.report_json.financialAnalysis.fundraisingAnalysis.impliedValuation || "\u2014"}
+                      </td>
+                    </tr>
+                    <tr className="border-b border-[var(--vl-border)]">
+                      <td className="py-3 px-3.5 text-[var(--vl-text)]">Runway Projetado</td>
+                      <td className="py-3 px-3.5 font-mono text-[var(--vl-gold2)]">
+                        {result.report_json.financialAnalysis.fundraisingAnalysis.runwayFromRaise || "\u2014"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-3.5 text-[var(--vl-text)]">{"Pr\u00f3ximo Milestone"}</td>
+                      <td className="py-3 px-3.5 text-[var(--vl-text2)]">
+                        {result.report_json.financialAnalysis.fundraisingAnalysis.nextMilestone || "\u2014"}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Timing de Mercado */}
             <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6">
               <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
                 TIMING DE MERCADO
                 <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
               <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
-                {
-                  result.report_json.strategyAnalysis.marketSize
-                    .marketTiming
-                }
+                {result.report_json.strategyAnalysis.marketSize.marketTiming}
               </p>
             </div>
           </div>
