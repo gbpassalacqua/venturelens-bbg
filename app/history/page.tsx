@@ -101,20 +101,20 @@ export default function HistoryPage() {
   function canDownloadPdf(a: AnalysisResult): boolean {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rj = a.report_json as any;
-    return !!(rj && (rj.meta || (rj.summary && rj.scores && rj.tam)));
+    return !!(rj && (rj.name || (rj.scores && rj.tam)));
   }
 
   function isV2(a: AnalysisResult): boolean {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rj = a.report_json as any;
-    return !!(rj?.meta?.modelVersion);
+    return !!(rj?.name && rj?.scores);
   }
 
   function getVersionLabel(a: AnalysisResult): string | null {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rj = a.report_json as any;
-    if (rj?.meta?.modelVersion) return "V2";
-    if (rj?.summary) return "V1";
+    if (rj?.name && rj?.scores) return "V2";
+    if (rj?.verdict) return "V1";
     return null;
   }
 

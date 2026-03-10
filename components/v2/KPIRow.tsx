@@ -9,23 +9,23 @@ interface KPIRowProps {
 }
 
 export default function KPIRow({ report }: KPIRowProps) {
-  const metrics = report.financialAnalysis.currentMetrics;
+  const fin = report.fin;
 
   const kpis = [
     {
-      raw: metrics.revenue || "N/D",
+      raw: fin?.revenue || "N/D",
       label: "Receita/ARR",
     },
     {
-      raw: metrics.burnRate || "N/D",
+      raw: fin?.burn || "N/D",
       label: "Burn Rate",
     },
     {
-      raw: metrics.ltvCacRatio || "N/D",
+      raw: fin?.ltv_cac || "N/D",
       label: "LTV:CAC",
     },
     {
-      raw: metrics.churn || "N/D",
+      raw: fin?.churn || "N/D",
       label: "Churn Rate",
     },
   ];

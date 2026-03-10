@@ -14,7 +14,7 @@ interface Phase {
   barColor: string;
   title: string;
   goal: string;
-  itemsKey: "immediate" | "shortTerm" | "strategic";
+  itemsKey: "now" | "soon" | "later";
 }
 
 const PHASES: Phase[] = [
@@ -25,7 +25,7 @@ const PHASES: Phase[] = [
     barColor: "var(--vl-gold)",
     title: "Funda\u00E7\u00E3o",
     goal: "Implementar a\u00E7\u00F5es imediatas antes da pr\u00F3xima reuni\u00E3o.",
-    itemsKey: "immediate",
+    itemsKey: "now",
   },
   {
     tag: "FASE 2 \u00B7 CURTO PRAZO",
@@ -34,7 +34,7 @@ const PHASES: Phase[] = [
     barColor: "var(--vl-blue)",
     title: "Crescimento",
     goal: "Executar melhorias de curto prazo nas pr\u00F3ximas 2-4 semanas.",
-    itemsKey: "shortTerm",
+    itemsKey: "soon",
   },
   {
     tag: "FASE 3 \u00B7 ESTRAT\u00C9GICO",
@@ -43,12 +43,12 @@ const PHASES: Phase[] = [
     barColor: "var(--vl-green)",
     title: "Plataforma",
     goal: "Iniciativas estrat\u00E9gicas de longo prazo.",
-    itemsKey: "strategic",
+    itemsKey: "later",
   },
 ];
 
 export default function RoadmapScreen({ report }: RoadmapScreenProps) {
-  const recommendations = report.recommendations;
+  const recs = report.recs;
 
   return (
     <div className="max-w-[1200px] mx-auto p-10">
@@ -61,7 +61,7 @@ export default function RoadmapScreen({ report }: RoadmapScreenProps) {
       {/* ── Phases Grid ── */}
       <div className="grid grid-cols-1 min-[900px]:grid-cols-3 gap-4 mt-6">
         {PHASES.map((phase, i) => {
-          const items = recommendations[phase.itemsKey] ?? [];
+          const items = recs[phase.itemsKey] ?? [];
 
           return (
             <div

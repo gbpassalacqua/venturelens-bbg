@@ -4,7 +4,7 @@ import React from "react";
 import type { V2ReportJson, Verdict } from "@/types/analysis";
 import KPIRow from "./KPIRow";
 import TAMCards from "./TAMCards";
-import { parseCompetitor, extractFunding, scoreColor, barColorForScore } from "./helpers";
+import { scoreColor, barColorForScore } from "./helpers";
 
 interface DashboardProps {
   report: V2ReportJson;
@@ -21,8 +21,8 @@ const SCORE_LABELS: Record<string, string> = {
   traction: "Tra\u00e7\u00e3o",
   financials: "Financeiro",
   gtm: "GTM",
-  technology: "Tecnologia",
-  deckQuality: "Deck",
+  tech: "Tecnologia",
+  deck: "Deck",
 };
 
 const SCORE_KEYS = Object.keys(SCORE_LABELS) as Array<keyof typeof SCORE_LABELS>;
@@ -83,7 +83,7 @@ function truncate(text: string, max: number): string {
 }
 
 /* ── Type tag config ── */
-function typeTag(type: "direct" | "indirect") {
+function typeTag(type: string) {
   if (type === "direct") {
     return {
       label: "Direto",
@@ -100,13 +100,22 @@ function typeTag(type: "direct" | "indirect") {
   };
 }
 
-function threatTag(type: "direct" | "indirect") {
-  if (type === "direct") {
+function threatTag(threat: string) {
+  const t = threat?.toUpperCase();
+  if (t === "HIGH") {
     return {
       label: "Alto",
       bg: "rgba(239,68,68,.12)",
       color: "var(--vl-red)",
       border: "rgba(239,68,68,.2)",
+    };
+  }
+  if (t === "LOW") {
+    return {
+      label: "Baixo",
+      bg: "rgba(34,197,94,.12)",
+      color: "var(--vl-green)",
+      border: "rgba(34,197,94,.2)",
     };
   }
   return {
@@ -127,32 +136,11 @@ export default function Dashboard({
   onExportPDF,
   onDelete,
 }: DashboardProps) {
-  const { scores, executiveSummary, strategyAnalysis, meta } = report;
-  const verdictCfg = getVerdictConfig(executiveSummary.verdict);
-  const landscape = strategyAnalysis.competitiveLandscape;
+  const { scores, competitors } = report;
+  const verdictCfg = getVerdictConfig(report.verdict);
 
   // Build competitor preview items (max 5)
-  const directComps = landscape.directCompetitors?.slice(0, 4) ?? [];
-  const indirectComps = landscape.indirectCompetitors?.slice(0, 2) ?? [];
-
-  interface CompPreview {
-    parsed: { name: string; description: string };
-    type: "direct" | "indirect";
-    funding: string;
-  }
-
-  const compPreviewItems: CompPreview[] = [
-    ...directComps.map((text) => ({
-      parsed: parseCompetitor(text),
-      type: "direct" as const,
-      funding: extractFunding(text),
-    })),
-    ...indirectComps.map((text) => ({
-      parsed: parseCompetitor(text),
-      type: "indirect" as const,
-      funding: extractFunding(text),
-    })),
-  ].slice(0, 5);
+  const compPreviewItems = (competitors || []).slice(0, 5);
 
   return (
     <div className="max-w-[1200px] mx-auto p-10">
@@ -160,10 +148,10 @@ export default function Dashboard({
       <div className="flex justify-between items-start mb-10 max-[900px]:flex-col max-[900px]:gap-4">
         <div>
           <h2 className="font-display text-[2rem] font-bold tracking-[-0.02em]">
-            {meta.companyName || "VentureLens AI \u2014 An\u00e1lise de Startup"}
+            {report.name || "VentureLens AI \u2014 An\u00e1lise de Startup"}
           </h2>
           <p className="text-[var(--vl-text2)] mt-1.5">
-            {`An\u00e1lise completa \u00b7 ${meta.industry} \u00b7 ${meta.stage}`}
+            {`An\u00e1lise completa \u00b7 ${report.industry} \u00b7 ${report.stage}`}
           </p>
         </div>
 
@@ -213,12 +201,12 @@ export default function Dashboard({
 
             {/* Score */}
             <div className="font-display text-[5rem] font-extrabold text-[var(--vl-gold)] leading-none relative z-10">
-              {scores.overall.score}
+              {report.score}
             </div>
 
             {/* Caption */}
             <div className="text-sm text-[var(--vl-text2)] mt-2 relative z-10">
-              {`de 100 \u00b7 ${scores.overall.label}`}
+              de 100
             </div>
 
             {/* Verdict box */}
@@ -227,7 +215,7 @@ export default function Dashboard({
             >
               <div className="font-semibold">{verdictCfg.label}</div>
               <div className="mt-1 text-xs opacity-80">
-                {truncate(executiveSummary.verdictExplanation, 160)}
+                {truncate(report.thesis, 160)}
               </div>
             </div>
           </div>
@@ -243,9 +231,8 @@ export default function Dashboard({
             {/* Score items */}
             <div>
               {SCORE_KEYS.map((key, idx) => {
-                const item = scores[key as keyof typeof scores];
-                if (!item) return null;
-                const score = item.score;
+                const score = scores[key as keyof typeof scores] as number;
+                if (score == null) return null;
                 const scoreOf20 = Math.round(score / 5);
                 const isLast = idx === SCORE_KEYS.length - 1;
 
@@ -294,37 +281,31 @@ export default function Dashboard({
               <span className="flex-1 h-px bg-[var(--vl-border)]" />
             </div>
             <TAMCards
-              tam={strategyAnalysis.marketSize.tam}
-              sam={strategyAnalysis.marketSize.sam}
-              som={strategyAnalysis.marketSize.som}
+              tam={report.tam}
+              sam={report.sam}
+              som={report.som}
             />
 
-            {/* USA / Brasil Market Cards */}
+            {/* Timing + Moat Cards */}
             <div className="grid grid-cols-2 gap-3 max-[900px]:grid-cols-1">
               <div className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span>{"\uD83C\uDDFA\uD83C\uDDF8"}</span>
                   <span className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)]">
-                    Mercado EUA
+                    Timing
                   </span>
                 </div>
                 <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
-                  {strategyAnalysis.marketSize.credibilityAssessment
-                    ? truncate(strategyAnalysis.marketSize.credibilityAssessment, 150)
-                    : "Dados de mercado EUA indispon\u00edveis."}
+                  {report.timing || "Dados indispon\u00edveis."}
                 </p>
               </div>
               <div className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span>{"\uD83C\uDDE7\uD83C\uDDF7"}</span>
                   <span className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)]">
-                    Mercado Brasil
+                    Moat
                   </span>
                 </div>
-                <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
-                  {strategyAnalysis.marketSize.marketTiming
-                    ? truncate(strategyAnalysis.marketSize.marketTiming, 150)
-                    : "Dados de mercado Brasil indispon\u00edveis."}
+                <p className="text-sm text-[var(--vl-text2)] leading-relaxed font-semibold">
+                  {report.moat || "N\u00e3o identificado"}
                 </p>
               </div>
             </div>
@@ -348,10 +329,10 @@ export default function Dashboard({
                       Tipo
                     </th>
                     <th className="text-left py-2.5 px-3.5 bg-[var(--vl-bg2)] border-b-2 border-[var(--vl-border2)] text-[var(--vl-text2)] text-[.72rem] uppercase tracking-wider font-semibold">
-                      Funding
+                      {`Amea\u00e7a`}
                     </th>
                     <th className="text-left py-2.5 px-3.5 bg-[var(--vl-bg2)] border-b-2 border-[var(--vl-border2)] text-[var(--vl-text2)] text-[.72rem] uppercase tracking-wider font-semibold">
-                      {`Amea\u00e7a`}
+                      Fraqueza
                     </th>
                   </tr>
                 </thead>
@@ -367,8 +348,8 @@ export default function Dashboard({
                     </tr>
                   ) : (
                     compPreviewItems.map((comp, i) => {
-                      const tt = typeTag(comp.type);
-                      const thr = threatTag(comp.type);
+                      const tt = typeTag(comp.t);
+                      const thr = threatTag(comp.threat);
 
                       return (
                         <tr
@@ -376,7 +357,7 @@ export default function Dashboard({
                           className="border-b border-[var(--vl-border)] last:border-0 hover:bg-[var(--vl-bg2)]/30 transition-colors"
                         >
                           <td className="py-3 px-3.5 text-[var(--vl-text)] font-semibold">
-                            {comp.parsed.name}
+                            {comp.n}
                           </td>
                           <td className="py-3 px-3.5">
                             <span
@@ -390,9 +371,6 @@ export default function Dashboard({
                               {tt.label}
                             </span>
                           </td>
-                          <td className="py-3 px-3.5 font-mono text-sm text-[var(--vl-text2)]">
-                            {comp.funding}
-                          </td>
                           <td className="py-3 px-3.5">
                             <span
                               className="inline-block py-0.5 px-2.5 rounded-full text-[.72rem] font-semibold"
@@ -404,6 +382,9 @@ export default function Dashboard({
                             >
                               {thr.label}
                             </span>
+                          </td>
+                          <td className="py-3 px-3.5 text-sm text-[var(--vl-text2)]">
+                            {comp.gap}
                           </td>
                         </tr>
                       );

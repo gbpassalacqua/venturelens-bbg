@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { V2ReportJson, V2RiskItem, V2TechnicalRisk } from "@/types/analysis";
+import type { V2ReportJson, UCRiskItem } from "@/types/analysis";
 import { splitRiskText } from "./helpers";
 
 interface RiskScreenProps {
@@ -10,8 +10,8 @@ interface RiskScreenProps {
 
 /* ── Helpers ── */
 
-function probBadge(probability: string) {
-  const key = probability.toUpperCase();
+function probBadge(prob: string) {
+  const key = prob.toUpperCase();
   if (key === "HIGH")
     return {
       label: "Alta prob.",
@@ -58,27 +58,6 @@ function impactBadge(impact: string) {
   };
 }
 
-function severityBadge(severity: string) {
-  const key = severity.toUpperCase();
-  if (key === "CRITICAL" || key === "HIGH")
-    return {
-      label: key === "CRITICAL" ? "Cr\u00edtico" : "Alto",
-      bg: "rgba(239,68,68,.12)",
-      color: "var(--vl-red)",
-    };
-  if (key === "MEDIUM")
-    return {
-      label: "M\u00e9dio",
-      bg: "rgba(251,146,60,.12)",
-      color: "var(--vl-amber)",
-    };
-  return {
-    label: "Baixo",
-    bg: "rgba(34,197,94,.12)",
-    color: "var(--vl-green)",
-  };
-}
-
 /* ── Badge Component ── */
 
 function Badge({ label, bg, color }: { label: string; bg: string; color: string }) {
@@ -92,17 +71,16 @@ function Badge({ label, bg, color }: { label: string; bg: string; color: string 
   );
 }
 
-/* ── Strategy Risk Row ── */
+/* ── Risk Row ── */
 
-function StrategyRiskRow({ item }: { item: V2RiskItem }) {
-  const prob = probBadge(item.probability);
-  const imp = impactBadge(item.impact);
-  const { title, description } = splitRiskText(item.risk);
+function RiskRow({ item }: { item: UCRiskItem }) {
+  const prob = probBadge(item.p);
+  const imp = impactBadge(item.i);
+  const { title, description } = splitRiskText(item.r);
 
   return (
     <div className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-4 mb-2.5">
       <div className="grid grid-cols-[1fr_auto_auto] gap-4 items-start">
-        {/* Risk name + description */}
         <div>
           <p className="text-[.88rem] font-semibold mb-1">{title}</p>
           {description && (
@@ -111,63 +89,18 @@ function StrategyRiskRow({ item }: { item: V2RiskItem }) {
             </p>
           )}
         </div>
-
-        {/* Probability */}
         <Badge {...prob} />
-
-        {/* Impact */}
         <Badge {...imp} />
       </div>
 
-      {/* Mitigation */}
-      {item.mitigation && (
+      {item.m && (
         <div className="mt-2" style={{ gridColumn: "1 / -1" }}>
           <div className="bg-[rgba(255,255,255,.02)] rounded-md p-2.5">
             <p className="text-xs text-[var(--vl-text2)]">
               <span className="font-bold text-[var(--vl-text)]">
                 {"Mitiga\u00e7\u00e3o: "}
               </span>
-              {item.mitigation}
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Technical Risk Row ── */
-
-function TechnicalRiskRow({ item }: { item: V2TechnicalRisk }) {
-  const sev = severityBadge(item.severity);
-  const { title, description } = splitRiskText(item.risk);
-
-  return (
-    <div className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-4 mb-2.5">
-      <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
-        {/* Risk name + description */}
-        <div>
-          <p className="text-[.88rem] font-semibold mb-1">{title}</p>
-          {description && (
-            <p className="text-xs text-[var(--vl-text2)] leading-relaxed">
-              {description}
-            </p>
-          )}
-        </div>
-
-        {/* Severity */}
-        <Badge {...sev} />
-      </div>
-
-      {/* Mitigation */}
-      {item.mitigation && (
-        <div className="mt-2" style={{ gridColumn: "1 / -1" }}>
-          <div className="bg-[rgba(255,255,255,.02)] rounded-md p-2.5">
-            <p className="text-xs text-[var(--vl-text2)]">
-              <span className="font-bold text-[var(--vl-text)]">
-                {"Mitiga\u00e7\u00e3o: "}
-              </span>
-              {item.mitigation}
+              {item.m}
             </p>
           </div>
         </div>
@@ -179,50 +112,31 @@ function TechnicalRiskRow({ item }: { item: V2TechnicalRisk }) {
 /* ── Main Component ── */
 
 export default function RiskScreen({ report }: RiskScreenProps) {
-  const strategyRisks = report.strategyAnalysis.riskMatrix;
-  const technicalRisks = report.techAnalysis.technicalRisks;
-  const totalRisks = strategyRisks.length + technicalRisks.length;
+  const risks = report.risks || [];
 
   return (
     <div className="max-w-[1200px] mx-auto p-10">
-      {/* ── Page Header ── */}
       <h2 className="font-display text-[2rem] font-bold">
         {"An\u00e1lise de Riscos"}
       </h2>
       <p className="text-[var(--vl-text2)] mt-1.5">
-        {totalRisks} riscos identificados
+        {risks.length} riscos identificados
       </p>
 
-      {/* ── Strategy Risks ── */}
-      {strategyRisks.length > 0 && (
+      {risks.length > 0 && (
         <>
           <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 mt-6 flex items-center gap-2">
-            {"RISCOS ESTRAT\u00c9GICOS"}
+            RISCOS IDENTIFICADOS
             <span className="flex-1 h-px bg-[var(--vl-border)]" />
           </h3>
 
-          {strategyRisks.map((risk, i) => (
-            <StrategyRiskRow key={`strat-${i}`} item={risk} />
+          {risks.map((risk, i) => (
+            <RiskRow key={i} item={risk} />
           ))}
         </>
       )}
 
-      {/* ── Technical Risks ── */}
-      {technicalRisks.length > 0 && (
-        <>
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 mt-6 flex items-center gap-2">
-            {"RISCOS T\u00c9CNICOS"}
-            <span className="flex-1 h-px bg-[var(--vl-border)]" />
-          </h3>
-
-          {technicalRisks.map((risk, i) => (
-            <TechnicalRiskRow key={`tech-${i}`} item={risk} />
-          ))}
-        </>
-      )}
-
-      {/* Empty state */}
-      {totalRisks === 0 && (
+      {risks.length === 0 && (
         <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-8 text-center mt-6">
           <p className="text-sm text-[var(--vl-text3)]">
             {"Nenhum risco identificado na an\u00e1lise."}

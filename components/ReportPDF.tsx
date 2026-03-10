@@ -33,7 +33,7 @@ function verdictColor(v?: string): string {
   if (upper === "PASS") return BLUE;
   if (upper === "CONDITIONAL") return AMBER;
   if (upper === "WATCH") return ORANGE;
-  return RED; // DECLINE or unknown
+  return RED;
 }
 
 function verdictBg(v?: string): string {
@@ -47,7 +47,7 @@ function verdictBg(v?: string): string {
 
 function severityColor(s?: string): string {
   const lower = (s ?? "").toLowerCase();
-  if (lower === "high" || lower === "critical") return RED;
+  if (lower === "high" || lower === "critical" || lower === "fatal") return RED;
   if (lower === "medium") return AMBER;
   return GREEN;
 }
@@ -70,7 +70,6 @@ const styles = StyleSheet.create({
     color: DARK,
     backgroundColor: WHITE,
   },
-  /* Header */
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -95,7 +94,6 @@ const styles = StyleSheet.create({
     backgroundColor: GOLD,
     marginBottom: 18,
   },
-  /* Company / Project */
   companyName: {
     fontSize: 20,
     fontFamily: "Helvetica-Bold",
@@ -116,12 +114,12 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: GRAY,
     fontFamily: "Helvetica-Bold",
+    marginBottom: 2,
   },
   metaValue: {
     fontSize: 8,
     color: DARK,
   },
-  /* Score */
   scoreRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -159,7 +157,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Helvetica-Bold",
   },
-  /* Section */
   section: {
     marginTop: 14,
     marginBottom: 4,
@@ -173,25 +170,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: LIGHTGRAY,
   },
-  sectionTitleGold: {
-    fontSize: 13,
-    fontFamily: "Helvetica-Bold",
-    color: GOLD,
-    marginBottom: 6,
-    paddingBottom: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: GOLD,
-  },
   bodyText: {
     fontSize: 10,
     color: DARK,
     lineHeight: 1.5,
-  },
-  bodyItalic: {
-    fontSize: 10,
-    color: DARK,
-    lineHeight: 1.5,
-    fontFamily: "Helvetica-Oblique",
   },
   label: {
     fontSize: 8,
@@ -199,7 +181,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     marginBottom: 2,
   },
-  /* Bars */
   barRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -227,7 +208,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     textAlign: "right",
   },
-  /* TAM / SAM / SOM cards */
   tamRow: {
     flexDirection: "row",
     gap: 12,
@@ -250,7 +230,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Helvetica-Bold",
   },
-  /* Table */
   tableHeader: {
     flexDirection: "row",
     backgroundColor: "#F3F4F6",
@@ -282,7 +261,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     color: WHITE,
   },
-  /* 3-col layout */
   threeCol: {
     flexDirection: "row",
     gap: 10,
@@ -304,7 +282,6 @@ const styles = StyleSheet.create({
     marginBottom: 3,
     lineHeight: 1.4,
   },
-  /* Metric grid */
   metricGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -317,17 +294,16 @@ const styles = StyleSheet.create({
     borderColor: LIGHTGRAY,
     borderRadius: 6,
   },
-  metricLabel: {
+  metricCellLabel: {
     fontSize: 7,
     color: GRAY,
     marginBottom: 2,
   },
-  metricValue: {
+  metricCellValue: {
     fontSize: 12,
     fontFamily: "Helvetica-Bold",
     color: DARK,
   },
-  /* Badge / Tag */
   badge: {
     fontSize: 8,
     paddingHorizontal: 6,
@@ -336,7 +312,6 @@ const styles = StyleSheet.create({
     color: WHITE,
     fontFamily: "Helvetica-Bold",
   },
-  /* Footer */
   footer: {
     position: "absolute",
     bottom: 20,
@@ -398,8 +373,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 export default function ReportPDF({ result }: { result: AnalysisResult }) {
   const r = result.report_json as V2ReportJson;
 
-  // If V1 data (no meta field), render a simple fallback page
-  if (!r?.meta) {
+  if (!r?.name) {
     return (
       <Document>
         <Page size="A4" style={styles.page}>
@@ -410,19 +384,18 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
   }
 
   const today = new Date().toLocaleDateString("pt-BR");
-  const vColor = verdictColor(r.executiveSummary?.verdict);
-  const vBg = verdictBg(r.executiveSummary?.verdict);
+  const vColor = verdictColor(r.verdict);
+  const vBg = verdictBg(r.verdict);
 
   const scores = r.scores;
-  const exec = r.executiveSummary;
-  const strategy = r.strategyAnalysis;
-  const fin = r.financialAnalysis;
-  const mkt = r.marketingAnalysis;
-  const tech = r.techAnalysis;
-  const slides = r.slideBySlide;
-  const questions = r.investorQuestions;
-  const recs = r.recommendations;
-  const comps = r.comparables;
+  const risks = r.risks;
+  const fin = r.fin;
+  const gtm = r.gtm;
+  const tech = r.tech;
+  const slides = r.slides;
+  const questions = r.questions;
+  const recs = r.recs;
+  const comps = r.comps;
 
   return (
     <Document>
@@ -432,66 +405,45 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
       <Page size="A4" style={styles.page}>
         <Header subtitle="Análise V2" date={today} />
 
-        {/* Company Name */}
-        <Text style={styles.companyName}>{r.meta?.companyName ?? result.project_name}</Text>
+        <Text style={styles.companyName}>{r.name ?? result.project_name}</Text>
 
-        {/* Meta info row */}
         <View style={styles.metaRow}>
-          {r.meta?.industry ? (
+          {r.industry ? (
             <View style={styles.metaItem}>
               <Text style={styles.metaLabel}>Indústria: </Text>
-              <Text style={styles.metaValue}>{r.meta.industry}</Text>
+              <Text style={styles.metaValue}>{r.industry}</Text>
             </View>
           ) : null}
-          {r.meta?.stage ? (
+          {r.stage ? (
             <View style={styles.metaItem}>
               <Text style={styles.metaLabel}>Estágio: </Text>
-              <Text style={styles.metaValue}>{r.meta.stage}</Text>
-            </View>
-          ) : null}
-          {r.meta?.location ? (
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Localização: </Text>
-              <Text style={styles.metaValue}>{r.meta.location}</Text>
-            </View>
-          ) : null}
-          {r.meta?.fundingAsk ? (
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Captação: </Text>
-              <Text style={styles.metaValue}>{r.meta.fundingAsk}</Text>
+              <Text style={styles.metaValue}>{r.stage}</Text>
             </View>
           ) : null}
         </View>
 
         {/* Executive Summary */}
-        {exec ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Resumo Executivo</Text>
-            {exec.oneLiner ? (
-              <Text style={[styles.bodyText, { fontFamily: "Helvetica-Bold", marginBottom: 6 }]}>
-                {exec.oneLiner}
-              </Text>
-            ) : null}
-            {exec.thesis ? (
-              <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Tese</Text>
-                <Text style={styles.bodyText}>{exec.thesis}</Text>
-              </View>
-            ) : null}
-            {exec.antiThesis ? (
-              <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Antítese</Text>
-                <Text style={styles.bodyText}>{exec.antiThesis}</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Resumo Executivo</Text>
+          {r.thesis ? (
+            <View style={{ marginBottom: 4 }}>
+              <Text style={styles.label}>Tese</Text>
+              <Text style={styles.bodyText}>{r.thesis}</Text>
+            </View>
+          ) : null}
+          {r.antiThesis ? (
+            <View style={{ marginBottom: 4 }}>
+              <Text style={styles.label}>Antítese</Text>
+              <Text style={styles.bodyText}>{r.antiThesis}</Text>
+            </View>
+          ) : null}
+        </View>
 
         {/* Verdict + Score */}
         <View style={[styles.scoreRow, { marginTop: 12 }]}>
           <View style={[styles.scoreCircle, { borderColor: vColor }]}>
             <Text style={[styles.scoreNum, { color: vColor }]}>
-              {scores?.overall?.score ?? result.score}
+              {r.score ?? result.score}
             </Text>
             <Text style={styles.score100}>/100</Text>
           </View>
@@ -503,15 +455,15 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
               ]}
             >
               <Text style={[styles.verdictText, { color: vColor }]}>
-                {exec?.verdict ?? result.verdict}
+                {r.verdict ?? result.verdict}
               </Text>
             </View>
           </View>
         </View>
 
-        {exec?.verdictExplanation ? (
+        {r.thesis ? (
           <Text style={[styles.bodyText, { textAlign: "center", marginBottom: 8 }]}>
-            {exec.verdictExplanation}
+            {r.thesis}
           </Text>
         ) : null}
 
@@ -529,55 +481,43 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Scores</Text>
             {([
-              { key: "overall" as const, label: "Geral" },
               { key: "market" as const, label: "Mercado" },
               { key: "team" as const, label: "Time" },
               { key: "product" as const, label: "Produto" },
               { key: "traction" as const, label: "Tração" },
               { key: "financials" as const, label: "Financeiro" },
               { key: "gtm" as const, label: "GTM" },
-              { key: "technology" as const, label: "Tecnologia" },
-              { key: "deckQuality" as const, label: "Qualidade do Deck" },
+              { key: "tech" as const, label: "Tecnologia" },
+              { key: "deck" as const, label: "Qualidade do Deck" },
             ]).map(({ key, label }) => {
-              const item = scores?.[key];
-              if (!item) return null;
-              return (
-                <View key={key}>
-                  <ScoreBar label={label} score={item.score} />
-                  {item.summary ? (
-                    <Text style={{ fontSize: 7, color: GRAY, marginLeft: 80, marginBottom: 4, marginTop: -3 }}>
-                      {item.summary}
-                    </Text>
-                  ) : null}
-                </View>
-              );
+              const score = scores?.[key];
+              if (score == null) return null;
+              return <ScoreBar key={key} label={label} score={score} />;
             })}
           </View>
         ) : null}
 
         {/* TAM / SAM / SOM */}
-        {strategy?.marketSize ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tamanho de Mercado</Text>
-            <View style={styles.tamRow}>
-              {([
-                { key: "tam" as const, label: "TAM", color: GOLD },
-                { key: "sam" as const, label: "SAM", color: BLUE },
-                { key: "som" as const, label: "SOM", color: GREEN },
-              ]).map(({ key, label, color }) => (
-                <View key={key} style={[styles.tamCard, { borderBottomColor: color }]}>
-                  <Text style={styles.tamLabel}>{label}</Text>
-                  <Text style={[styles.tamValue, { color }]}>
-                    {strategy.marketSize?.[key] ?? "N/A"}
-                  </Text>
-                </View>
-              ))}
-            </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tamanho de Mercado</Text>
+          <View style={styles.tamRow}>
+            {([
+              { key: "tam" as const, label: "TAM", color: GOLD },
+              { key: "sam" as const, label: "SAM", color: BLUE },
+              { key: "som" as const, label: "SOM", color: GREEN },
+            ]).map(({ key, label, color }) => (
+              <View key={key} style={[styles.tamCard, { borderBottomColor: color }]}>
+                <Text style={styles.tamLabel}>{label}</Text>
+                <Text style={[styles.tamValue, { color }]}>
+                  {r[key] ?? "N/A"}
+                </Text>
+              </View>
+            ))}
           </View>
-        ) : null}
+        </View>
 
         {/* Moat strength badge */}
-        {strategy?.competitiveLandscape?.moatStrength ? (
+        {r.moat ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, marginBottom: 4 }}>
             <Text style={styles.label}>Força do Moat:</Text>
             <Text
@@ -585,21 +525,21 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
                 styles.badge,
                 {
                   backgroundColor:
-                    strategy.competitiveLandscape.moatStrength.toLowerCase() === "strong"
+                    r.moat.toLowerCase() === "strong" || r.moat.toLowerCase() === "fortress"
                       ? GREEN
-                      : strategy.competitiveLandscape.moatStrength.toLowerCase() === "moderate"
+                      : r.moat.toLowerCase() === "moderate"
                         ? AMBER
                         : RED,
                 },
               ]}
             >
-              {strategy.competitiveLandscape.moatStrength}
+              {r.moat}
             </Text>
           </View>
         ) : null}
 
         {/* Risk Matrix */}
-        {strategy?.riskMatrix && strategy.riskMatrix.length > 0 ? (
+        {risks && risks.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Matriz de Riscos</Text>
             <View style={styles.tableHeader}>
@@ -608,30 +548,30 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
               <Text style={[styles.th, { flex: 1 }]}>Impacto</Text>
               <Text style={[styles.th, { flex: 3 }]}>Mitigação</Text>
             </View>
-            {strategy.riskMatrix.map((rm, i) => (
+            {risks.map((rm, i) => (
               <View key={i} style={styles.tableRow}>
-                <Text style={[styles.td, { flex: 3 }]}>{rm?.risk}</Text>
+                <Text style={[styles.td, { flex: 3 }]}>{rm?.r}</Text>
                 <View style={{ flex: 1, flexDirection: "row" }}>
                   <Text
                     style={[
                       styles.tag,
-                      { backgroundColor: severityColor(rm?.probability) },
+                      { backgroundColor: severityColor(rm?.p) },
                     ]}
                   >
-                    {rm?.probability}
+                    {rm?.p}
                   </Text>
                 </View>
                 <View style={{ flex: 1, flexDirection: "row" }}>
                   <Text
                     style={[
                       styles.tag,
-                      { backgroundColor: severityColor(rm?.impact) },
+                      { backgroundColor: severityColor(rm?.i) },
                     ]}
                   >
-                    {rm?.impact}
+                    {rm?.i}
                   </Text>
                 </View>
-                <Text style={[styles.td, { flex: 3, color: GRAY }]}>{rm?.mitigation}</Text>
+                <Text style={[styles.td, { flex: 3, color: GRAY }]}>{rm?.m}</Text>
               </View>
             ))}
           </View>
@@ -641,33 +581,28 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
       </Page>
 
       {/* ═══════════════════════════════════════════════════════════
-          PAGE 3 — Financial & Marketing
+          PAGE 3 — Financial & GTM
           ═══════════════════════════════════════════════════════════ */}
       <Page size="A4" style={styles.page}>
-        <Header subtitle="Financeiro & Marketing" date={today} />
+        <Header subtitle="Financeiro & GTM" date={today} />
 
         {/* Financial Metrics Grid */}
-        {fin?.currentMetrics ? (
+        {fin ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Métricas Financeiras</Text>
             <View style={styles.metricGrid}>
               {([
                 { key: "revenue" as const, label: "Receita" },
-                { key: "burnRate" as const, label: "Burn Rate" },
-                { key: "runway" as const, label: "Runway" },
-                { key: "grossMargin" as const, label: "Margem Bruta" },
-                { key: "cac" as const, label: "CAC" },
-                { key: "ltv" as const, label: "LTV" },
-                { key: "ltvCacRatio" as const, label: "LTV/CAC" },
+                { key: "burn" as const, label: "Burn Rate" },
+                { key: "ltv_cac" as const, label: "LTV/CAC" },
                 { key: "churn" as const, label: "Churn" },
-                { key: "nrr" as const, label: "NRR" },
               ]).map(({ key, label }) => {
-                const val = fin.currentMetrics?.[key];
+                const val = fin?.[key];
                 if (!val) return null;
                 return (
                   <View key={key} style={styles.metricCell}>
-                    <Text style={styles.metricLabel}>{label}</Text>
-                    <Text style={styles.metricValue}>{val}</Text>
+                    <Text style={styles.metricCellLabel}>{label}</Text>
+                    <Text style={styles.metricCellValue}>{val}</Text>
                   </View>
                 );
               })}
@@ -675,121 +610,41 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
           </View>
         ) : null}
 
-        {/* Fundraising Analysis */}
-        {fin?.fundraisingAnalysis ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Análise de Captação</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {([
-                { key: "amountRaising" as const, label: "Captação" },
-                { key: "impliedValuation" as const, label: "Valuation Implícito" },
-                { key: "runwayFromRaise" as const, label: "Runway Pós-Captação" },
-                { key: "nextMilestone" as const, label: "Próximo Marco" },
-              ]).map(({ key, label }) => {
-                const val = fin.fundraisingAnalysis?.[key];
-                if (!val) return null;
-                return (
-                  <View key={key} style={{ marginRight: 16, marginBottom: 4 }}>
-                    <Text style={styles.metricLabel}>{label}</Text>
-                    <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: DARK }}>
-                      {val}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-            {fin.fundraisingAnalysis?.useOfFunds ? (
-              <View style={{ marginTop: 4 }}>
-                <Text style={styles.label}>Uso dos Recursos</Text>
-                <Text style={styles.bodyText}>{fin.fundraisingAnalysis.useOfFunds}</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-
-        {/* Financial Verdict */}
-        {fin?.financialVerdict ? (
-          <View style={{ marginTop: 6, padding: 8, backgroundColor: "#F9FAFB", borderRadius: 6, borderLeftWidth: 3, borderLeftColor: GOLD }}>
-            <Text style={styles.label}>Veredito Financeiro</Text>
-            <Text style={styles.bodyText}>{fin.financialVerdict}</Text>
-          </View>
-        ) : null}
-
-        {/* Marketing: GTM Channels */}
-        {mkt?.gtmStrategy ? (
+        {/* GTM */}
+        {gtm ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Estratégia Go-To-Market</Text>
-            {mkt.gtmStrategy.primaryChannels && mkt.gtmStrategy.primaryChannels.length > 0 ? (
+            {gtm.channels ? (
               <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Canais Primários</Text>
-                <Text style={styles.bodyText}>
-                  {mkt.gtmStrategy.primaryChannels.join(", ")}
-                </Text>
+                <Text style={styles.label}>Canais</Text>
+                <Text style={styles.bodyText}>{gtm.channels}</Text>
               </View>
             ) : null}
-            {mkt.gtmStrategy.channelMarketFit ? (
+            {gtm.traction ? (
               <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Channel-Market Fit</Text>
-                <Text style={styles.bodyText}>{mkt.gtmStrategy.channelMarketFit}</Text>
-              </View>
-            ) : null}
-            {mkt.gtmStrategy.distributionModel ? (
-              <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Modelo de Distribuição</Text>
-                <Text style={styles.bodyText}>{mkt.gtmStrategy.distributionModel}</Text>
+                <Text style={styles.label}>Tração Atual</Text>
+                <Text style={styles.bodyText}>{gtm.traction}</Text>
               </View>
             ) : null}
           </View>
         ) : null}
 
-        {/* Traction */}
-        {mkt?.tractionValidation ? (
+        {/* Tech */}
+        {tech ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Validação de Tração</Text>
-            {([
-              { key: "currentTraction" as const, label: "Tração Atual" },
-              { key: "growthTrajectory" as const, label: "Trajetória de Crescimento" },
-              { key: "tractionQuality" as const, label: "Qualidade da Tração" },
-              { key: "socialProof" as const, label: "Prova Social" },
-            ]).map(({ key, label }) => {
-              const val = mkt.tractionValidation?.[key];
-              if (!val) return null;
-              return (
-                <View key={key} style={{ marginBottom: 3 }}>
-                  <Text style={styles.label}>{label}</Text>
-                  <Text style={styles.bodyText}>{val}</Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
-
-        {/* Brand Positioning */}
-        {mkt?.brandPositioning ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Posicionamento de Marca</Text>
-            {([
-              { key: "valueProposition" as const, label: "Proposta de Valor" },
-              { key: "messagingQuality" as const, label: "Qualidade da Mensagem" },
-              { key: "differentiationStrength" as const, label: "Diferenciação" },
-            ]).map(({ key, label }) => {
-              const val = mkt.brandPositioning?.[key];
-              if (!val) return null;
-              return (
-                <View key={key} style={{ marginBottom: 3 }}>
-                  <Text style={styles.label}>{label}</Text>
-                  <Text style={styles.bodyText}>{val}</Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
-
-        {/* Marketing Verdict */}
-        {mkt?.marketingVerdict ? (
-          <View style={{ marginTop: 6, padding: 8, backgroundColor: "#F9FAFB", borderRadius: 6, borderLeftWidth: 3, borderLeftColor: GOLD }}>
-            <Text style={styles.label}>Veredito de Marketing</Text>
-            <Text style={styles.bodyText}>{mkt.marketingVerdict}</Text>
+            <Text style={styles.sectionTitle}>Avaliação Tecnológica</Text>
+            {tech.stack ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Stack Tecnológica</Text>
+                <Text style={styles.bodyText}>{tech.stack}</Text>
+              </View>
+            ) : null}
+            {tech.risk ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={styles.label}>Risco Técnico</Text>
+                <Text style={styles.bodyText}>{tech.risk}</Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -797,94 +652,10 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
       </Page>
 
       {/* ═══════════════════════════════════════════════════════════
-          PAGE 4 — Tech & Slide Analysis
+          PAGE 4 — Slides & Questions
           ═══════════════════════════════════════════════════════════ */}
       <Page size="A4" style={styles.page}>
-        <Header subtitle="Tecnologia & Slides" date={today} />
-
-        {/* Technology Assessment */}
-        {tech?.technologyAssessment ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Avaliação Tecnológica</Text>
-            {tech.technologyAssessment.techStack ? (
-              <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Stack Tecnológica</Text>
-                <Text style={styles.bodyText}>{tech.technologyAssessment.techStack}</Text>
-              </View>
-            ) : null}
-            {tech.technologyAssessment.architectureScalability ? (
-              <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Escalabilidade da Arquitetura</Text>
-                <Text style={styles.bodyText}>{tech.technologyAssessment.architectureScalability}</Text>
-              </View>
-            ) : null}
-            {tech.technologyAssessment.aiMlClaims ? (
-              <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Claims de IA/ML</Text>
-                <Text style={styles.bodyText}>{tech.technologyAssessment.aiMlClaims}</Text>
-              </View>
-            ) : null}
-            {tech.technologyAssessment.dataStrategy ? (
-              <View style={{ marginBottom: 4 }}>
-                <Text style={styles.label}>Estratégia de Dados</Text>
-                <Text style={styles.bodyText}>{tech.technologyAssessment.dataStrategy}</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-
-        {/* Technical Risks */}
-        {tech?.technicalRisks && tech.technicalRisks.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Riscos Técnicos</Text>
-            {tech.technicalRisks.map((tr, i) => (
-              <View
-                key={i}
-                style={{
-                  marginBottom: 6,
-                  padding: 6,
-                  borderWidth: 1,
-                  borderColor: LIGHTGRAY,
-                  borderRadius: 4,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <Text
-                    style={[styles.badge, { backgroundColor: severityColor(tr?.severity) }]}
-                  >
-                    {tr?.severity?.toUpperCase()}
-                  </Text>
-                  <Text style={{ fontSize: 9, color: DARK, flex: 1 }}>{tr?.risk}</Text>
-                </View>
-                {tr?.mitigation ? (
-                  <Text style={{ fontSize: 7, color: GRAY }}>Mitigação: {tr.mitigation}</Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {/* IP Defensibility */}
-        {tech?.ipDefensibility ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>PI & Defensibilidade</Text>
-            {([
-              { key: "patents" as const, label: "Patentes" },
-              { key: "proprietaryTech" as const, label: "Tecnologia Proprietária" },
-              { key: "moatDurability" as const, label: "Durabilidade do Moat" },
-              { key: "openSourceRisk" as const, label: "Risco Open Source" },
-            ]).map(({ key, label }) => {
-              const val = tech.ipDefensibility?.[key];
-              if (!val) return null;
-              return (
-                <View key={key} style={{ marginBottom: 3 }}>
-                  <Text style={styles.label}>{label}</Text>
-                  <Text style={styles.bodyText}>{val}</Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
+        <Header subtitle="Slides & Perguntas" date={today} />
 
         {/* Slide-by-Slide Table */}
         {slides && slides.length > 0 ? (
@@ -894,40 +665,31 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
               <Text style={[styles.th, { width: 20 }]}>#</Text>
               <Text style={[styles.th, { flex: 2 }]}>Título</Text>
               <Text style={[styles.th, { width: 40 }]}>Nota</Text>
-              <Text style={[styles.th, { flex: 3 }]}>Pontos Fortes</Text>
+              <Text style={[styles.th, { flex: 3 }]}>Dica</Text>
             </View>
             {slides.map((slide, i) => (
               <View key={i} style={styles.tableRow}>
                 <Text style={[styles.td, { width: 20, fontFamily: "Helvetica-Bold" }]}>
-                  {slide?.slideNumber}
+                  {slide?.n}
                 </Text>
-                <Text style={[styles.td, { flex: 2 }]}>{slide?.slideTitle}</Text>
+                <Text style={[styles.td, { flex: 2 }]}>{slide?.t}</Text>
                 <View style={{ width: 40, flexDirection: "row" }}>
                   <Text
                     style={[
                       styles.tag,
-                      { backgroundColor: gradeColor(slide?.grade) },
+                      { backgroundColor: gradeColor(slide?.g) },
                     ]}
                   >
-                    {slide?.grade}
+                    {slide?.g}
                   </Text>
                 </View>
                 <Text style={[styles.td, { flex: 3, color: GRAY }]}>
-                  {slide?.strengths?.join("; ")}
+                  {slide?.tip}
                 </Text>
               </View>
             ))}
           </View>
         ) : null}
-
-        <Footer date={today} />
-      </Page>
-
-      {/* ═══════════════════════════════════════════════════════════
-          PAGE 5 — Recommendations & Questions
-          ═══════════════════════════════════════════════════════════ */}
-      <Page size="A4" style={styles.page}>
-        <Header subtitle="Recomendações & Perguntas" date={today} />
 
         {/* Investor Questions */}
         {questions && questions.length > 0 ? (
@@ -941,16 +703,24 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
           </View>
         ) : null}
 
+        <Footer date={today} />
+      </Page>
+
+      {/* ═══════════════════════════════════════════════════════════
+          PAGE 5 — Recommendations & Comparables
+          ═══════════════════════════════════════════════════════════ */}
+      <Page size="A4" style={styles.page}>
+        <Header subtitle="Recomendações & Comparáveis" date={today} />
+
         {/* Recommendations in 3 columns */}
         {recs ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recomendações</Text>
             <View style={styles.threeCol}>
-              {/* Immediate */}
-              {recs.immediate && recs.immediate.length > 0 ? (
+              {recs.now && recs.now.length > 0 ? (
                 <View style={[styles.colCard, { borderColor: RED }]}>
                   <Text style={[styles.colTitle, { color: RED }]}>Imediato</Text>
-                  {recs.immediate.map((item, i) => (
+                  {recs.now.map((item, i) => (
                     <Text key={i} style={styles.colItem}>
                       {i + 1}. {item}
                     </Text>
@@ -958,11 +728,10 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
                 </View>
               ) : null}
 
-              {/* Short-Term */}
-              {recs.shortTerm && recs.shortTerm.length > 0 ? (
+              {recs.soon && recs.soon.length > 0 ? (
                 <View style={[styles.colCard, { borderColor: AMBER }]}>
                   <Text style={[styles.colTitle, { color: AMBER }]}>Curto Prazo</Text>
-                  {recs.shortTerm.map((item, i) => (
+                  {recs.soon.map((item, i) => (
                     <Text key={i} style={styles.colItem}>
                       {i + 1}. {item}
                     </Text>
@@ -970,11 +739,10 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
                 </View>
               ) : null}
 
-              {/* Strategic */}
-              {recs.strategic && recs.strategic.length > 0 ? (
+              {recs.later && recs.later.length > 0 ? (
                 <View style={[styles.colCard, { borderColor: BLUE }]}>
                   <Text style={[styles.colTitle, { color: BLUE }]}>Estratégico</Text>
-                  {recs.strategic.map((item, i) => (
+                  {recs.later.map((item, i) => (
                     <Text key={i} style={styles.colItem}>
                       {i + 1}. {item}
                     </Text>
@@ -986,23 +754,21 @@ export default function ReportPDF({ result }: { result: AnalysisResult }) {
         ) : null}
 
         {/* Comparables */}
-        {comps?.similarCompanies && comps.similarCompanies.length > 0 ? (
+        {comps && comps.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Comparáveis</Text>
             <View style={styles.tableHeader}>
               <Text style={[styles.th, { flex: 2 }]}>Empresa</Text>
-              <Text style={[styles.th, { flex: 2 }]}>Similaridade</Text>
-              <Text style={[styles.th, { flex: 2 }]}>Resultado</Text>
-              <Text style={[styles.th, { flex: 3 }]}>Lição</Text>
+              <Text style={[styles.th, { flex: 3 }]}>Similaridade</Text>
+              <Text style={[styles.th, { flex: 3 }]}>Resultado</Text>
             </View>
-            {comps.similarCompanies.map((c, i) => (
+            {comps.map((c, i) => (
               <View key={i} style={styles.tableRow}>
                 <Text style={[styles.td, { flex: 2, fontFamily: "Helvetica-Bold" }]}>
                   {c?.name}
                 </Text>
-                <Text style={[styles.td, { flex: 2 }]}>{c?.similarity}</Text>
-                <Text style={[styles.td, { flex: 2 }]}>{c?.outcome}</Text>
-                <Text style={[styles.td, { flex: 3, color: GRAY }]}>{c?.lesson}</Text>
+                <Text style={[styles.td, { flex: 3 }]}>{c?.sim}</Text>
+                <Text style={[styles.td, { flex: 3 }]}>{c?.out}</Text>
               </View>
             ))}
           </View>

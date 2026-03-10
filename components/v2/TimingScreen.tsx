@@ -28,26 +28,22 @@ function signalLabel(score: number): { text: string; color: string } {
 }
 
 export default function TimingScreen({ report }: TimingScreenProps) {
-  const marketScore = report.scores.market.score;
+  const marketScore = report.scores.market;
   const displayScore = (marketScore / 10).toFixed(1);
   const label = getTimingLabel(marketScore);
 
-  const marketTimingText = report.strategyAnalysis.marketSize.marketTiming;
+  const marketTimingText = report.timing;
 
-  // Derive dimension descriptions from relevant report fields
-  const techReadinessDesc =
-    report.techAnalysis.technologyAssessment.architectureScalability;
-  const demandTrendDesc =
-    report.marketingAnalysis.tractionValidation.growthTrajectory;
-  const regulatoryDesc =
-    report.techAnalysis.securityCompliance.dataPrivacy;
-  const adoptionCurveDesc =
-    report.marketingAnalysis.scalabilityAssessment.channelScalability;
+  // Derive dimension descriptions from ultra-compact report fields
+  const techReadinessDesc = report.tech.risk;
+  const demandTrendDesc = report.gtm.traction;
+  const regulatoryDesc = report.tech.stack;
+  const adoptionCurveDesc = report.gtm.channels;
 
   const dimensions: TimingDimension[] = [
     {
       name: "Prontid\u00e3o Tecnol\u00f3gica",
-      scoreKey: "technology",
+      scoreKey: "tech",
       description: techReadinessDesc,
       weight: "25%",
     },
@@ -76,8 +72,8 @@ export default function TimingScreen({ report }: TimingScreenProps) {
     {
       signal: "Maturidade Tecnol\u00f3gica",
       source: "An\u00e1lise T\u00e9cnica",
-      value: report.scores.technology
-        ? `${(report.scores.technology.score / 10).toFixed(1)}/10`
+      value: report.scores.tech
+        ? `${(report.scores.tech / 10).toFixed(1)}/10`
         : "N/A",
       interpretation: techReadinessDesc
         ? techReadinessDesc.length > 100
@@ -89,7 +85,7 @@ export default function TimingScreen({ report }: TimingScreenProps) {
       signal: "Velocidade de Demanda",
       source: "Tra\u00e7\u00e3o & Mercado",
       value: report.scores.traction
-        ? `${(report.scores.traction.score / 10).toFixed(1)}/10`
+        ? `${(report.scores.traction / 10).toFixed(1)}/10`
         : "N/A",
       interpretation: demandTrendDesc
         ? demandTrendDesc.length > 100
@@ -101,7 +97,7 @@ export default function TimingScreen({ report }: TimingScreenProps) {
       signal: "Risco Regulat\u00f3rio",
       source: "Seguran\u00e7a & Compliance",
       value: report.scores.product
-        ? `${(report.scores.product.score / 10).toFixed(1)}/10`
+        ? `${(report.scores.product / 10).toFixed(1)}/10`
         : "N/A",
       interpretation: regulatoryDesc
         ? regulatoryDesc.length > 100
@@ -113,7 +109,7 @@ export default function TimingScreen({ report }: TimingScreenProps) {
       signal: "Curva de Ado\u00e7\u00e3o",
       source: "GTM & Escalabilidade",
       value: report.scores.gtm
-        ? `${(report.scores.gtm.score / 10).toFixed(1)}/10`
+        ? `${(report.scores.gtm / 10).toFixed(1)}/10`
         : "N/A",
       interpretation: adoptionCurveDesc
         ? adoptionCurveDesc.length > 100
@@ -125,7 +121,6 @@ export default function TimingScreen({ report }: TimingScreenProps) {
 
   return (
     <div className="max-w-[1200px] mx-auto p-10">
-      {/* ── Page Header ── */}
       <h2 className="font-display text-[2rem] font-bold">
         Motor de Timing de Mercado
       </h2>
@@ -157,8 +152,7 @@ export default function TimingScreen({ report }: TimingScreenProps) {
       {/* ── Timing Dimensions Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
         {dimensions.map((dim) => {
-          const scoreItem = report.scores[dim.scoreKey];
-          const pct = scoreItem?.score ?? 0;
+          const pct = report.scores[dim.scoreKey] ?? 0;
           const sig = signalLabel(pct);
 
           return (
@@ -166,15 +160,13 @@ export default function TimingScreen({ report }: TimingScreenProps) {
               key={dim.name}
               className="bg-[var(--vl-bg2)] border border-[var(--vl-border)] rounded-lg p-[18px]"
             >
-              {/* Header */}
               <div className="flex justify-between items-center mb-2.5">
                 <span className="text-sm font-semibold">{dim.name}</span>
                 <span className="font-mono text-base text-[var(--vl-gold2)]">
-                  {scoreItem ? (scoreItem.score / 10).toFixed(1) : "N/A"}
+                  {(pct / 10).toFixed(1)}
                 </span>
               </div>
 
-              {/* Progress Bar */}
               <div className="bg-[var(--vl-border)] rounded h-2 overflow-hidden">
                 <div
                   className="h-full rounded bg-gradient-to-r from-[var(--vl-gold)] to-[var(--vl-gold2)] transition-all duration-700"
@@ -182,13 +174,11 @@ export default function TimingScreen({ report }: TimingScreenProps) {
                 />
               </div>
 
-              {/* Weight + Signal text */}
               <p className="text-xs text-[var(--vl-text3)] mt-1.5">
                 {`Peso: ${dim.weight} \u00b7 Sinal: `}
                 <span style={{ color: sig.color }}>{sig.text}</span>
               </p>
 
-              {/* Description */}
               <p className="text-xs text-[var(--vl-text3)] mt-1 leading-relaxed line-clamp-3">
                 {dim.description}
               </p>

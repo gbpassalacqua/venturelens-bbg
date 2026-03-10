@@ -805,7 +805,7 @@ export async function POST(request: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      // Heartbeat interval — keeps connection alive during long Gemini calls
+      // Heartbeat interval — keeps connection alive during long Claude calls
       const heartbeat = setInterval(() => {
         sendLine(controller, encoder, { type: "heartbeat", ts: Date.now() });
       }, 5000);
@@ -828,78 +828,100 @@ export async function POST(request: Request) {
           return;
         }
 
-        const textoExtraido = await extractTextFromFile(file);
+        // Read file bytes for Claude document support
+        const fileBytes = await file.arrayBuffer();
+        const base64Data = Buffer.from(fileBytes).toString("base64");
+        const mimeType = file.type || "application/pdf";
+        const isNativeDoc = mimeType === "application/pdf";
 
-        if (!textoExtraido || textoExtraido.trim().length < 50) {
-          clearInterval(heartbeat);
-          sendLine(controller, encoder, { type: "error", message: "Could not extract enough text from file" });
-          controller.close();
-          return;
+        // For non-PDF files, extract text as fallback
+        let textoExtraido = "";
+        if (!isNativeDoc) {
+          textoExtraido = await extractTextFromFile(file);
+          if (!textoExtraido || textoExtraido.trim().length < 50) {
+            clearInterval(heartbeat);
+            sendLine(controller, encoder, { type: "error", message: "Could not extract enough text from file" });
+            controller.close();
+            return;
+          }
         }
 
         // ── Step 2: Resolve GitHub ──
-        sendLine(controller, encoder, { type: "status", step: 2, message: "Verificando reposit\u00f3rio..." });
+        sendLine(controller, encoder, { type: "status", step: 2, message: "Verificando repositório..." });
 
         const github = await resolveGithub(githubUrl, packageJsonFile);
 
-        // ── Step 3: Build prompt ──
-        sendLine(controller, encoder, { type: "status", step: 3, message: "Agente Estrat\u00e9gia analisando..." });
+        // ── Step 3: Build Claude prompt ──
+        sendLine(controller, encoder, { type: "status", step: 3, message: "Agente Estratégia analisando..." });
 
-        const { geminiModel } = await import("@/lib/gemini");
-        const { VENTURELENS_SYSTEM_PROMPT, V2_SCHEMA_PART_A, V2_SCHEMA_PART_B } = await import("@/lib/playbook");
+        const { getAnthropicClient, AI_MODEL, parseClaudeJSON, extractResponseText } = await import("@/lib/ai-client");
+        const { VENTURELENS_SYSTEM_PROMPT } = await import("@/lib/playbook");
 
-        let prompt = `${VENTURELENS_SYSTEM_PROMPT}\n\nAnalyze this document:\n\n${textoExtraido}`;
+        const client = getAnthropicClient();
+
+        // Build user content blocks for Claude
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const userContent: any[] = [];
+
+        if (isNativeDoc) {
+          // Send PDF natively via Claude document type
+          userContent.push({
+            type: "document",
+            source: { type: "base64", media_type: mimeType, data: base64Data },
+          });
+        } else {
+          // Send extracted text
+          userContent.push({
+            type: "text",
+            text: `Documento enviado:\n\n${textoExtraido}`,
+          });
+        }
+
+        // Build additional context
+        let additionalContext = "";
 
         // Append founder-provided context if available
         if (extractedContext) {
           try {
             const fields = JSON.parse(extractedContext);
-            prompt += `\n\n--- CONTEXTO ADICIONAL FORNECIDO PELO FUNDADOR ---
+            additionalContext += `\n\nCONTEXTO ADICIONAL FORNECIDO PELO FUNDADOR:
 - Problema: ${fields.problema || "N/A"}
-- Solu\u00e7\u00e3o: ${fields.solucao || "N/A"}
+- Solução: ${fields.solucao || "N/A"}
 - ICP: ${fields.icp || "N/A"}
-- Monetiza\u00e7\u00e3o: ${fields.monetizacao || "N/A"}
+- Monetização: ${fields.monetizacao || "N/A"}
 - Vertical: ${fields.vertical || "N/A"}
-- Depend\u00eancias Tecnol\u00f3gicas: ${fields.dependencias || "N/A"}
+- Dependências Tecnológicas: ${fields.dependencias || "N/A"}
 - Mercados-Alvo: ${fields.mercados || "N/A"}
 
-Considere estas informa\u00e7\u00f5es como verdade fornecida pelo fundador. Use-as para enriquecer sua an\u00e1lise.`;
+Considere estas informações como verdade fornecida pelo fundador. Use-as para enriquecer sua análise.`;
           } catch {
             // ignore parse error
           }
         }
 
         if (github.context) {
-          prompt += `\n\n--- TECHNICAL DATA FROM REPOSITORY ---\n${github.context}`;
+          additionalContext += `\n\n--- TECHNICAL DATA FROM REPOSITORY ---\n${github.context}`;
         }
 
-        // ── Step 4: Call Gemini ──
-        sendLine(controller, encoder, { type: "status", step: 4, message: "Agente Finan\u00e7as processando..." });
+        userContent.push({
+          type: "text",
+          text: `Analise este documento completo seguindo as instruções do system prompt. Retorne APENAS o JSON válido.${additionalContext}`,
+        });
+
+        // ── Step 4: Call Claude (single call, no split) ──
+        sendLine(controller, encoder, { type: "status", step: 4, message: "Agentes analisando..." });
+
+        const response = await client.messages.create({
+          model: AI_MODEL,
+          max_tokens: 4096,
+          system: VENTURELENS_SYSTEM_PROMPT,
+          messages: [{ role: "user", content: userContent }],
+        });
+
+        const responseText = extractResponseText(response.content);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let d: any;
-        try {
-          const result = await geminiModel.generateContent(prompt);
-          const text = result.response.text();
-          d = JSON.parse(text);
-        } catch (parseError) {
-          // FALLBACK: Split into 2 calls
-          console.log("Full response failed, trying split fallback...", parseError);
-
-          sendLine(controller, encoder, { type: "status", step: 5, message: "Dividindo an\u00e1lise em partes..." });
-
-          const promptA = `${prompt}\n\n${V2_SCHEMA_PART_A}`;
-          const promptB = `${prompt}\n\n${V2_SCHEMA_PART_B}`;
-
-          const [resultA, resultB] = await Promise.all([
-            geminiModel.generateContent(promptA),
-            geminiModel.generateContent(promptB),
-          ]);
-
-          const partA = JSON.parse(resultA.response.text());
-          const partB = JSON.parse(resultB.response.text());
-          d = { ...partA, ...partB };
-        }
+        const d: any = parseClaudeJSON(responseText);
 
         // ── Step 5: Save to Supabase ──
         sendLine(controller, encoder, { type: "status", step: 6, message: "Salvando resultado..." });
@@ -916,14 +938,14 @@ Considere estas informa\u00e7\u00f5es como verdade fornecida pelo fundador. Use-
           id,
           created_at: now,
           created_by: createdBy,
-          project_name: d.meta?.companyName || file.name.replace(/\.[^.]+$/, ""),
+          project_name: d.name || file.name.replace(/\.[^.]+$/, ""),
           file_name: file.name,
-          score: d.scores?.overall?.score || 0,
-          verdict: d.executiveSummary?.verdict || "WATCH",
-          recommendation: d.executiveSummary?.verdictExplanation || "",
-          mvp_features: (d.recommendations?.immediate || []).map((s: string) => ({ name: s, reason: "" })),
-          v2_features: (d.recommendations?.shortTerm || []).map((s: string) => ({ name: s, reason: "" })),
-          cut_features: (d.recommendations?.strategic || []).map((s: string) => ({ name: s, reason: "" })),
+          score: d.score || 0,
+          verdict: d.verdict || "WATCH",
+          recommendation: d.thesis || "",
+          mvp_features: (d.recs?.now || []).map((s: string) => ({ name: s, reason: "" })),
+          v2_features: (d.recs?.soon || []).map((s: string) => ({ name: s, reason: "" })),
+          cut_features: (d.recs?.later || []).map((s: string) => ({ name: s, reason: "" })),
           report_json: d,
         };
 

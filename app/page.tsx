@@ -151,12 +151,17 @@ export default function Home() {
       const lines = buffer.split("\n");
       buffer = lines.pop() || ""; // keep incomplete last line in buffer
 
-      for (const line of lines) {
-        if (!line.trim()) continue;
+      for (let i = 0; i < lines.length; i++) {
+        const trimmed = lines[i].trim();
+        if (!trimmed) continue;
         try {
-          onMessage(JSON.parse(line));
+          onMessage(JSON.parse(trimmed));
         } catch {
-          // not valid JSON, skip
+          // Partial JSON chunk — put this line + remaining lines back into buffer
+          const remaining = lines.slice(i).join("\n");
+          buffer = remaining + (buffer ? "\n" + buffer : "");
+          console.log("[stream] Buffering partial chunk:", trimmed.substring(0, 60) + "...");
+          break;
         }
       }
     }
@@ -164,9 +169,9 @@ export default function Home() {
     // Process remaining buffer
     if (buffer.trim()) {
       try {
-        onMessage(JSON.parse(buffer));
-      } catch {
-        // skip
+        onMessage(JSON.parse(buffer.trim()));
+      } catch (e) {
+        console.error("[stream] Failed to parse remaining buffer:", (e as Error).message);
       }
     }
   }
@@ -359,7 +364,7 @@ export default function Home() {
   async function handleDeleteAnalysis() {
     if (!result) return;
     const confirmed = window.confirm(
-      `Tem certeza que deseja apagar a análise de "${result.report_json?.meta?.companyName || result.project_name}"? Esta ação não pode ser desfeita.`,
+      `Tem certeza que deseja apagar a análise de "${result.report_json?.name || result.project_name}"? Esta ação não pode ser desfeita.`,
     );
     if (!confirmed) return;
 
@@ -502,21 +507,10 @@ export default function Home() {
                 <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
               <TAMCards
-                tam={result.report_json.strategyAnalysis.marketSize.tam}
-                sam={result.report_json.strategyAnalysis.marketSize.sam}
-                som={result.report_json.strategyAnalysis.marketSize.som}
+                tam={result.report_json.tam}
+                sam={result.report_json.sam}
+                som={result.report_json.som}
               />
-            </div>
-
-            {/* Credibility Assessment */}
-            <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-                {"AVALIA\u00c7\u00c3O DE CREDIBILIDADE"}
-                <span className="flex-1 h-px bg-[var(--vl-border)]" />
-              </div>
-              <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
-                {result.report_json.strategyAnalysis.marketSize.credibilityAssessment}
-              </p>
             </div>
 
             {/* Methodology Card */}
@@ -530,52 +524,15 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Funding Velocity */}
+            {/* Moat Card */}
             <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mb-4">
               <div className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-                VELOCIDADE DE INVESTIMENTO
+                MOAT
                 <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr>
-                      <th className="text-left py-2.5 px-3.5 bg-[var(--vl-bg2)] border-b-2 border-[var(--vl-border2)] text-[var(--vl-text2)] text-[.72rem] uppercase tracking-wider font-semibold">
-                        {"M\u00e9trica"}
-                      </th>
-                      <th className="text-left py-2.5 px-3.5 bg-[var(--vl-bg2)] border-b-2 border-[var(--vl-border2)] text-[var(--vl-text2)] text-[.72rem] uppercase tracking-wider font-semibold">
-                        Valor
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-[var(--vl-border)]">
-                      <td className="py-3 px-3.5 text-[var(--vl-text)]">Ask de Funding</td>
-                      <td className="py-3 px-3.5 font-mono text-[var(--vl-gold2)]">
-                        {result.report_json.meta.fundingAsk || "\u2014"}
-                      </td>
-                    </tr>
-                    <tr className="border-b border-[var(--vl-border)]">
-                      <td className="py-3 px-3.5 text-[var(--vl-text)]">{"Valua\u00e7\u00e3o Impl\u00edcita"}</td>
-                      <td className="py-3 px-3.5 font-mono text-[var(--vl-gold2)]">
-                        {result.report_json.financialAnalysis.fundraisingAnalysis.impliedValuation || "\u2014"}
-                      </td>
-                    </tr>
-                    <tr className="border-b border-[var(--vl-border)]">
-                      <td className="py-3 px-3.5 text-[var(--vl-text)]">Runway Projetado</td>
-                      <td className="py-3 px-3.5 font-mono text-[var(--vl-gold2)]">
-                        {result.report_json.financialAnalysis.fundraisingAnalysis.runwayFromRaise || "\u2014"}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-3.5 text-[var(--vl-text)]">{"Pr\u00f3ximo Milestone"}</td>
-                      <td className="py-3 px-3.5 text-[var(--vl-text2)]">
-                        {result.report_json.financialAnalysis.fundraisingAnalysis.nextMilestone || "\u2014"}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <p className="text-sm text-[var(--vl-text2)] leading-relaxed font-semibold">
+                {result.report_json.moat || "\u2014"}
+              </p>
             </div>
 
             {/* Timing de Mercado */}
@@ -585,7 +542,7 @@ export default function Home() {
                 <span className="flex-1 h-px bg-[var(--vl-border)]" />
               </div>
               <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
-                {result.report_json.strategyAnalysis.marketSize.marketTiming}
+                {result.report_json.timing}
               </p>
             </div>
           </div>

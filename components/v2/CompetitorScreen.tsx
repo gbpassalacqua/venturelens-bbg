@@ -1,78 +1,57 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import type { V2ReportJson } from "@/types/analysis";
-import { parseCompetitor, extractFunding } from "./helpers";
+import type { V2ReportJson, UCCompetitor } from "@/types/analysis";
 
 interface CompetitorScreenProps {
   report: V2ReportJson;
 }
 
-type TabKey = "all" | "direct" | "indirect" | "emerging";
-
-/* ── Detect emerging competitor keywords ── */
-const EMERGING_KEYWORDS = [
-  "startup", "emergente", "emerging", "novo", "new entrant",
-  "recently", "recente", "early", "seed", "pre-seed",
-];
-
-function isEmerging(text: string): boolean {
-  const lower = text.toLowerCase();
-  return EMERGING_KEYWORDS.some((kw) => lower.includes(kw));
-}
+type TabKey = "all" | "direct" | "indirect";
 
 /* ── Type tag config ── */
-function typeTag(type: "direct" | "indirect" | "emerging") {
-  switch (type) {
-    case "direct":
-      return {
-        label: "Direto",
-        bg: "rgba(239,68,68,.12)",
-        color: "var(--vl-red)",
-        border: "rgba(239,68,68,.2)",
-      };
-    case "indirect":
-      return {
-        label: "Indireto",
-        bg: "rgba(59,130,246,.12)",
-        color: "var(--vl-blue2)",
-        border: "rgba(59,130,246,.2)",
-      };
-    case "emerging":
-      return {
-        label: "Emergente",
-        bg: "rgba(34,197,94,.12)",
-        color: "var(--vl-green)",
-        border: "rgba(34,197,94,.2)",
-      };
+function typeTag(type: string) {
+  if (type === "direct") {
+    return {
+      label: "Direto",
+      bg: "rgba(239,68,68,.12)",
+      color: "var(--vl-red)",
+      border: "rgba(239,68,68,.2)",
+    };
   }
+  return {
+    label: "Indireto",
+    bg: "rgba(59,130,246,.12)",
+    color: "var(--vl-blue2)",
+    border: "rgba(59,130,246,.2)",
+  };
 }
 
 /* ── Threat level tag config ── */
-function threatTag(type: "direct" | "indirect" | "emerging") {
-  switch (type) {
-    case "direct":
-      return {
-        label: "Alto",
-        bg: "rgba(239,68,68,.12)",
-        color: "var(--vl-red)",
-        border: "rgba(239,68,68,.2)",
-      };
-    case "indirect":
-      return {
-        label: "M\u00e9dio",
-        bg: "rgba(251,146,60,.12)",
-        color: "var(--vl-amber)",
-        border: "rgba(251,146,60,.2)",
-      };
-    case "emerging":
-      return {
-        label: "Crescente",
-        bg: "rgba(34,197,94,.12)",
-        color: "var(--vl-green)",
-        border: "rgba(34,197,94,.2)",
-      };
+function threatTag(threat: string) {
+  const t = threat?.toUpperCase();
+  if (t === "HIGH") {
+    return {
+      label: "Alto",
+      bg: "rgba(239,68,68,.12)",
+      color: "var(--vl-red)",
+      border: "rgba(239,68,68,.2)",
+    };
   }
+  if (t === "LOW") {
+    return {
+      label: "Baixo",
+      bg: "rgba(34,197,94,.12)",
+      color: "var(--vl-green)",
+      border: "rgba(34,197,94,.2)",
+    };
+  }
+  return {
+    label: "M\u00e9dio",
+    bg: "rgba(251,146,60,.12)",
+    color: "var(--vl-amber)",
+    border: "rgba(251,146,60,.2)",
+  };
 }
 
 /* ── Moat strength styling ── */
@@ -91,14 +70,6 @@ const MOAT_BG: Record<string, string> = {
   FORTRESS: "rgba(34,197,94,.12)",
 };
 
-/* ── Competitor item type ── */
-interface CompItem {
-  text: string;
-  type: "direct" | "indirect" | "emerging";
-  parsed: { name: string; description: string };
-  funding: string;
-}
-
 /* ════════════════════════════════════════════════════════════════════════
    CompetitorScreen Component
    ════════════════════════════════════════════════════════════════════════ */
@@ -106,34 +77,11 @@ interface CompItem {
 export default function CompetitorScreen({ report }: CompetitorScreenProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("all");
 
-  const { directCompetitors, indirectCompetitors, moatAssessment, moatStrength } =
-    report.strategyAnalysis.competitiveLandscape;
+  const allItems: UCCompetitor[] = report.competitors || [];
+  const moatStrength = report.moat || "NONE";
 
-  // Build competitor items with type classification
-  const allItems = useMemo<CompItem[]>(() => {
-    const direct: CompItem[] = directCompetitors.map((text) => ({
-      text,
-      type: "direct" as const,
-      parsed: parseCompetitor(text),
-      funding: extractFunding(text),
-    }));
-
-    const indirect: CompItem[] = indirectCompetitors.map((text) => {
-      const emerging = isEmerging(text);
-      return {
-        text,
-        type: emerging ? ("emerging" as const) : ("indirect" as const),
-        parsed: parseCompetitor(text),
-        funding: extractFunding(text),
-      };
-    });
-
-    return [...direct, ...indirect];
-  }, [directCompetitors, indirectCompetitors]);
-
-  const directItems = allItems.filter((i) => i.type === "direct");
-  const indirectItems = allItems.filter((i) => i.type === "indirect");
-  const emergingItems = allItems.filter((i) => i.type === "emerging");
+  const directItems = useMemo(() => allItems.filter((c) => c.t === "direct"), [allItems]);
+  const indirectItems = useMemo(() => allItems.filter((c) => c.t === "indirect"), [allItems]);
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
     { key: "all", label: "Todos", count: allItems.length },
@@ -141,29 +89,14 @@ export default function CompetitorScreen({ report }: CompetitorScreenProps) {
     { key: "indirect", label: "Indiretos", count: indirectItems.length },
   ];
 
-  // Only show Emergentes tab if there are any
-  if (emergingItems.length > 0) {
-    tabs.push({ key: "emerging", label: "Emergentes", count: emergingItems.length });
-  }
-
   const filteredItems = useMemo(() => {
     if (activeTab === "direct") return directItems;
     if (activeTab === "indirect") return indirectItems;
-    if (activeTab === "emerging") return emergingItems;
     return allItems;
-  }, [activeTab, allItems, directItems, indirectItems, emergingItems]);
+  }, [activeTab, allItems, directItems, indirectItems]);
 
   const moatColor = MOAT_COLORS[moatStrength.toUpperCase()] ?? "var(--vl-text2)";
   const moatBg = MOAT_BG[moatStrength.toUpperCase()] ?? "rgba(255,255,255,.06)";
-
-  // Business model chips
-  const businessModel = report.strategyAnalysis.businessModel;
-  const whiteSpaceChips = [
-    businessModel.revenueModel,
-    businessModel.scalability,
-    businessModel.pricingPower,
-    businessModel.unitEconomicsViability,
-  ].filter(Boolean);
 
   return (
     <div className="max-w-[1200px] mx-auto p-10">
@@ -208,35 +141,26 @@ export default function CompetitorScreen({ report }: CompetitorScreenProps) {
                     Tipo
                   </th>
                   <th className="text-left py-2.5 px-3.5 bg-[var(--vl-bg2)] border-b-2 border-[var(--vl-border2)] text-[var(--vl-text2)] text-[.72rem] uppercase tracking-wider font-semibold">
-                    Funding
+                    {`Amea\u00e7a`}
                   </th>
                   <th className="text-left py-2.5 px-3.5 bg-[var(--vl-bg2)] border-b-2 border-[var(--vl-border2)] text-[var(--vl-text2)] text-[.72rem] uppercase tracking-wider font-semibold">
-                    {`Amea\u00e7a`}
+                    Fraqueza
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredItems.map((item, i) => {
-                  const tt = typeTag(item.type);
-                  const thr = threatTag(item.type);
+                  const tt = typeTag(item.t);
+                  const thr = threatTag(item.threat);
 
                   return (
                     <tr
                       key={i}
                       className="border-b border-[var(--vl-border)] last:border-0 hover:bg-[var(--vl-bg2)]/30 transition-colors"
-                      title={item.text}
                     >
-                      {/* Empresa */}
-                      <td className="py-3 px-3.5 text-[var(--vl-text)]">
-                        <div className="font-semibold">{item.parsed.name}</div>
-                        {item.parsed.description && (
-                          <div className="text-xs text-[var(--vl-text3)] mt-0.5 line-clamp-2">
-                            {item.parsed.description}
-                          </div>
-                        )}
+                      <td className="py-3 px-3.5 text-[var(--vl-text)] font-semibold">
+                        {item.n}
                       </td>
-
-                      {/* Tipo */}
                       <td className="py-3 px-3.5">
                         <span
                           className="inline-block py-0.5 px-2.5 rounded-full text-[.72rem] font-semibold"
@@ -249,13 +173,6 @@ export default function CompetitorScreen({ report }: CompetitorScreenProps) {
                           {tt.label}
                         </span>
                       </td>
-
-                      {/* Funding */}
-                      <td className="py-3 px-3.5 font-mono text-sm text-[var(--vl-text2)]">
-                        {item.funding}
-                      </td>
-
-                      {/* Ameaça */}
                       <td className="py-3 px-3.5">
                         <span
                           className="inline-block py-0.5 px-2.5 rounded-full text-[.72rem] font-semibold"
@@ -267,6 +184,9 @@ export default function CompetitorScreen({ report }: CompetitorScreenProps) {
                         >
                           {thr.label}
                         </span>
+                      </td>
+                      <td className="py-3 px-3.5 text-sm text-[var(--vl-text2)]">
+                        {item.gap}
                       </td>
                     </tr>
                   );
@@ -294,35 +214,9 @@ export default function CompetitorScreen({ report }: CompetitorScreenProps) {
         </div>
 
         <p className="text-sm text-[var(--vl-text2)] leading-relaxed">
-          {moatAssessment}
+          {report.timing || ""}
         </p>
       </div>
-
-      {/* ── White Space Opportunities ── */}
-      {whiteSpaceChips.length > 0 && (
-        <div className="bg-[var(--vl-card)] border border-[var(--vl-border)] rounded-xl p-6 mt-4">
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--vl-text3)] mb-4 flex items-center gap-2">
-            OPORTUNIDADES DE WHITE SPACE
-            <span className="flex-1 h-px bg-[var(--vl-border)]" />
-          </h3>
-
-          <div className="flex flex-wrap">
-            {whiteSpaceChips.map((chip, i) => (
-              <span
-                key={i}
-                className="inline-block py-1 px-3 rounded-full text-xs font-semibold m-1"
-                style={{
-                  background: "rgba(59,130,246,.1)",
-                  border: "1px solid rgba(59,130,246,.2)",
-                  color: "var(--vl-blue2)",
-                }}
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
