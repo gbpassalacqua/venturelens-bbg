@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getAnthropicClient, AI_MODEL, parseClaudeJSON, extractResponseText } from "@/lib/ai-client";
 import { extractTextFromFile } from "@/lib/file-utils";
 
 export const dynamic = "force-dynamic";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+// MIME types that Claude accepts as native document (PDF only)
+const CLAUDE_DOC_MIMES = new Set(["application/pdf"]);
 
-// MIME types that Gemini accepts as inline data (multimodal)
-const GEMINI_INLINE_MIMES = new Set([
-  "application/pdf",
+// MIME types that Claude accepts as image
+const CLAUDE_IMAGE_MIMES = new Set([
   "image/png",
   "image/jpeg",
   "image/webp",
@@ -75,48 +75,42 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        const apiKey =
-          process.env.GEMINI_API_KEY ||
-          process.env.GOOGLE_API_KEY ||
-          process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-        if (!apiKey) {
-          clearInterval(heartbeat);
-          sendLine(controller, encoder, {
-            type: "error",
-            message: "API key não configurada",
-          });
-          controller.close();
-          return;
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-          model: GEMINI_MODEL,
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
-          },
-        });
+        const client = getAnthropicClient();
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let parts: any[];
+        let userContent: any[] = [];
 
         if (file) {
           const mimeType = file.type || "application/pdf";
+          const bytes = await file.arrayBuffer();
+          const base64 = Buffer.from(bytes).toString("base64");
 
-          if (GEMINI_INLINE_MIMES.has(mimeType)) {
-            const bytes = await file.arrayBuffer();
-            const base64 = Buffer.from(bytes).toString("base64");
+          if (CLAUDE_DOC_MIMES.has(mimeType)) {
+            // PDF → Claude document type
             console.log(
-              `[extract] Sending file as base64: ${file.name}, ${mimeType}, ${Math.round(bytes.byteLength / 1024)}KB`,
+              `[extract] Sending PDF as document: ${file.name}, ${Math.round(bytes.byteLength / 1024)}KB`,
             );
-            parts = [
-              { text: EXTRACT_PROMPT },
-              { inlineData: { mimeType, data: base64 } },
+            userContent = [
+              {
+                type: "document",
+                source: { type: "base64", media_type: mimeType, data: base64 },
+              },
+              { type: "text", text: EXTRACT_PROMPT },
+            ];
+          } else if (CLAUDE_IMAGE_MIMES.has(mimeType)) {
+            // Image → Claude image type
+            console.log(
+              `[extract] Sending image: ${file.name}, ${mimeType}, ${Math.round(bytes.byteLength / 1024)}KB`,
+            );
+            userContent = [
+              {
+                type: "image",
+                source: { type: "base64", media_type: mimeType, data: base64 },
+              },
+              { type: "text", text: EXTRACT_PROMPT },
             ];
           } else {
+            // DOCX / other → extract text first
             console.log(
               `[extract] Extracting text from file: ${file.name}, ${mimeType}`,
             );
@@ -146,10 +140,11 @@ export async function POST(req: NextRequest) {
 
             const truncated = documentContent.slice(0, 8000);
             console.log(
-              `[extract] Extracted ${documentContent.length} chars, sending ${truncated.length} to Gemini`,
+              `[extract] Extracted ${documentContent.length} chars, sending ${truncated.length} to Claude`,
             );
-            parts = [
+            userContent = [
               {
+                type: "text",
                 text:
                   EXTRACT_PROMPT + "\n\n--- DOCUMENTO ---\n" + truncated,
               },
@@ -159,28 +154,22 @@ export async function POST(req: NextRequest) {
           console.log(
             `[extract] Sending text input: ${textInput!.substring(0, 100)}...`,
           );
-          parts = [
-            { text: EXTRACT_PROMPT + "\n\nDocumento:\n" + textInput },
+          userContent = [
+            { type: "text", text: EXTRACT_PROMPT + "\n\nDocumento:\n" + textInput },
           ];
         }
 
-        console.log("[extract] Calling Gemini...");
-        const result = await model.generateContent(parts);
-        const response = result.response;
-        const text = response.text();
-        console.log("[extract] Gemini response:", text.substring(0, 300));
+        console.log("[extract] Calling Claude...");
+        const response = await client.messages.create({
+          model: AI_MODEL,
+          max_tokens: 2048,
+          messages: [{ role: "user", content: userContent }],
+        });
 
-        let fields;
-        try {
-          fields = JSON.parse(text);
-        } catch {
-          const cleaned = text
-            .replace(/```json\n?/g, "")
-            .replace(/```\n?/g, "")
-            .trim();
-          fields = JSON.parse(cleaned);
-        }
+        const text = extractResponseText(response.content);
+        console.log("[extract] Claude response:", text.substring(0, 300));
 
+        const fields = parseClaudeJSON(text);
         console.log("[extract] Parsed fields:", Object.keys(fields));
 
         clearInterval(heartbeat);

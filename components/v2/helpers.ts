@@ -43,34 +43,6 @@ export function tamTruncate(text: string, max = 80): string {
 }
 
 /**
- * Try to extract a funding amount from competitor description text.
- */
-export function extractFunding(text: string): string {
-  const match = text.match(/\$[\d,.]+\s*[KMBTkmbt]?i?/i);
-  return match ? match[0] : "\u2014";
-}
-
-/**
- * Parse a competitor text string into name + description.
- * Handles "Name (description)", "Name: description", "Name — description" patterns.
- */
-export function parseCompetitor(text: string): { name: string; description: string } {
-  // Pattern: "Name (description)"
-  const parenMatch = text.match(/^([^(]+)\s*\((.+)\)\s*$/);
-  if (parenMatch) return { name: parenMatch[1].trim(), description: parenMatch[2].trim() };
-
-  // Pattern: "Name: description" or "Name — description"
-  const dashMatch = text.match(/^([^:\u2013\u2014\u2015\u2212.]+?)\s*[:\u2013\u2014\u2015\u2212.]\s*([\s\S]+)$/);
-  if (dashMatch) return { name: dashMatch[1].trim(), description: dashMatch[2].trim() };
-
-  // Fallback: use first 40 chars as name
-  return {
-    name: text.length > 40 ? text.substring(0, 40) : text,
-    description: "",
-  };
-}
-
-/**
  * Split a risk text into title + description.
  * If the text is long (>60 chars), splits at the first period.
  * Otherwise, uses the first ~10 words as title.
