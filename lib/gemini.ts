@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 /** Centralized model name — change here to update everywhere */
-export const GEMINI_MODEL = "gemini-3-flash-preview";
+export const GEMINI_MODEL = "gemini-2.5-flash";
 
 /** Full analysis model (large output, structured JSON) */
 export const geminiModel = genAI.getGenerativeModel({

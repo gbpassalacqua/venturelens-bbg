@@ -4,7 +4,7 @@ import { extractTextFromFile } from "@/lib/file-utils";
 
 export const dynamic = "force-dynamic";
 
-const GEMINI_MODEL = "gemini-3-flash-preview";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 // MIME types that Gemini accepts as inline data (multimodal)
 const GEMINI_INLINE_MIMES = new Set([
