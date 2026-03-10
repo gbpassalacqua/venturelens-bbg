@@ -10,17 +10,18 @@ export function getAnthropicClient() {
   return new Anthropic({ apiKey });
 }
 
-/** Parse Claude response text, handling markdown-wrapped JSON */
+/** Parse Claude response text — extract JSON between first { and last }, ignore trailing text */
 export function parseClaudeJSON(text: string) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const cleaned = text
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
-      .trim();
-    return JSON.parse(cleaned);
-  }
+  // Strip markdown fences if present
+  const stripped = text
+    .replace(/```json\n?/g, "")
+    .replace(/```\n?/g, "")
+    .trim();
+
+  // Extract ONLY the JSON object — ignore any text before or after
+  const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("Nenhum JSON encontrado na resposta do Claude");
+  return JSON.parse(jsonMatch[0]);
 }
 
 /** Extract text from Claude response content blocks */
